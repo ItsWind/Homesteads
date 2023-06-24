@@ -179,13 +179,29 @@ namespace Homesteads.Models {
             if (homesteadScene == null)
                 return;
 
-            foreach (string produceItem in homesteadScene.ProduceItems) {
-                float randNumForChance = MBRandom.RandomFloat;
-                if (randNumForChance > 0.15)
-                    continue;
+            // try/catch for V2.3
+            try {
+                foreach (HomesteadScenePlaceableProducedItem produceItem in homesteadScene.ProduceItems) {
+                    float randNumForChance = MBRandom.RandomFloat;
+                    if (randNumForChance > produceItem.DailyChance)
+                        continue;
 
-                ItemObject itemToProduce = Campaign.Current.ObjectManager.GetObject<ItemObject>(produceItem);
-                Stash.AddToCounts(itemToProduce, 1);
+                    string[] itemIDs = produceItem.ItemProducedID.Split('|');
+                    string itemToProduceID = itemIDs.GetRandomElementInefficiently();
+
+                    ItemObject? itemToProduce = Campaign.Current.ObjectManager.GetObject<ItemObject>(itemToProduceID);
+                    if (itemToProduce == null)
+                        continue;
+
+                    if (produceItem.RequiredItemsToProduce.Count > 0 && !Utils.DoesItemRosterHaveItems(Stash, produceItem.RequiredItemsToProduce, true))
+                        continue;
+
+                    Stash.AddToCounts(itemToProduce, produceItem.AmountToProduce);
+                }
+            }
+            catch (NullReferenceException) {
+                if (homesteadScene.ProduceItems == null)
+                    homesteadScene.ProduceItems = new();
             }
         }
 

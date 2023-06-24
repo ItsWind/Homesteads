@@ -27,10 +27,11 @@ namespace Homesteads.Models {
         public int TotalSpace = 0;
         [SaveableField(7)]
         public int TotalLeisure = 0;
-        [SaveableField(8)]
-        public List<string> ProduceItems = new();
+        // DO NOT USE 8
         [SaveableField(9)]
         public Vec3 PlayerSpawnPosition = Vec3.Invalid;
+        [SaveableField(10)]
+        public List<HomesteadScenePlaceableProducedItem> ProduceItems = new();
 
         public int MaxBuildPoints => Homestead.Tier == 0 ? 15 : (Homestead.Tier * 30) + (Homestead.Tier * 15);
         public int BuildPointsLeftToUse => MaxBuildPoints - CurrentlyUsedBuildPoints;
@@ -49,7 +50,7 @@ namespace Homesteads.Models {
             }
 
             // Check for item requirements
-            if (!CheckItemsRequiredForPlaceable(placeable)) {
+            if (!Utils.DoesItemRosterHaveItems(Homestead.Stash, placeable.ItemRequirements, true)) {
                 Utils.PrintDebugMessage("You do not have the items required in your homestead's stash for this object!");
                 return;
             }
@@ -94,39 +95,6 @@ namespace Homesteads.Models {
             HomesteadSpawningMissionLogic.Instance.HandleSpawning();
         }
 
-        public bool CheckItemsRequiredForPlaceable(HomesteadScenePlaceable placeable, bool takeItems = true) {
-            if (placeable.ItemRequirements.Count == 0)
-                return true;
-
-            Dictionary<ItemObject, int> itemsToTake = new();
-            foreach (KeyValuePair<string, int> pair in placeable.ItemRequirements) {
-                ItemObject? item = Campaign.Current.ObjectManager.GetObject<ItemObject>(pair.Key);
-                if (item == null) {
-                    Utils.PrintDebugMessage(pair.Key + " IS NOT A VALID ITEM ID", 255, 0, 0);
-                    continue;
-                }
-
-                ItemRosterElement itemInHomestead = ItemRosterElement.Invalid;
-                try {
-                    itemInHomestead = Homestead.Stash.First(x => x.EquipmentElement.Item == item);
-                } catch (InvalidOperationException) {
-                    return false;
-                }
-
-                int amountOfItem = itemInHomestead.Amount;
-                if (amountOfItem < pair.Value)
-                    return false;
-
-                itemsToTake[item] = pair.Value;
-            }
-
-            if (takeItems)
-                foreach (KeyValuePair<ItemObject, int> pair in itemsToTake)
-                    Homestead.Stash.AddToCounts(pair.Key, -pair.Value);
-
-            return true;
-        }
-
         private void AddSavedEntityToCurrentScene(HomesteadSceneSavedEntity savedEntity) {
             if (!GameEntity.PrefabExists(savedEntity.Placeable.PrefabName)) {
                 Utils.PrintDebugMessage("CAUGHT NON EXISTING PREFAB NAME " + savedEntity.Placeable.PrefabName);
@@ -153,8 +121,16 @@ namespace Homesteads.Models {
             TotalProductivity -= placeable.ProductivityIncrease;
             TotalSpace -= placeable.SpaceIncrease;
             TotalLeisure -= placeable.LeisureIncrease;
-            foreach (string produceItem in placeable.ProduceItems)
-                ProduceItems.Remove(produceItem);
+
+            // try/catch to fix update V2.3
+            try {
+                foreach (HomesteadScenePlaceableProducedItem produceItem in placeable.ProduceItems)
+                    ProduceItems.Remove(produceItem);
+            }
+            catch (NullReferenceException) {
+                if (ProduceItems == null)
+                    ProduceItems = new();
+            }
         }
 
         private void AddPlaceableEntityValues(HomesteadScenePlaceable placeable) {

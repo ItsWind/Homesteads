@@ -25,12 +25,13 @@ namespace Homesteads.Models {
         public int SpaceIncrease;
         [SaveableField(7)]
         public int LeisureIncrease;
-        [SaveableField(8)]
-        public List<string> ProduceItems;
+        // DO NOT USE FIELD 8
         [SaveableField(9)]
         public Dictionary<string, int> ItemRequirements;
+        [SaveableField(10)]
+        public List<HomesteadScenePlaceableProducedItem> ProduceItems;
 
-        public HomesteadScenePlaceable(string displayName, string desc, string prefabName, int buildPointsRequired, int productivity, int space, int leisure, List<string> produceItems, Dictionary<string, int> itemRequirements) {
+        public HomesteadScenePlaceable(string displayName, string desc, string prefabName, int buildPointsRequired, int productivity, int space, int leisure, List<HomesteadScenePlaceableProducedItem> produceItems, Dictionary<string, int> itemRequirements) {
             DisplayName = displayName;
             Description = "--------------------\n" + " - " + displayName + " - \n" + desc + "\n";
             PrefabName = prefabName;
@@ -50,14 +51,19 @@ namespace Homesteads.Models {
 
             string producesTextRaw = "";
             if (produceItems.Count > 0) {
-                Dictionary<string, int> itemNamesAndCount = new();
-                foreach (string produceItem in produceItems) {
-                    int currentCount = itemNamesAndCount.ContainsKey(produceItem) ? itemNamesAndCount[produceItem] : 0;
-                    itemNamesAndCount[produceItem] = currentCount + 1;
-                }
                 List<string> modifiedProduceItemNames = new();
-                foreach (KeyValuePair<string, int> pair in itemNamesAndCount)
-                    modifiedProduceItemNames.Add(pair.Key + " x" + pair.Value);
+                foreach (HomesteadScenePlaceableProducedItem item in ProduceItems) {
+                    string itemString = item.ItemProducedID + " x" + item.AmountToProduce;
+                    if (item.RequiredItemsToProduce.Count > 0) {
+                        Utils.PrintDebugMessage("YER");
+                        itemString += " NEEDS ";
+                        List<string> modifiedRequiredItemNames = new();
+                        foreach (KeyValuePair<string, int> pair in item.RequiredItemsToProduce)
+                            modifiedRequiredItemNames.Add(pair.Key + " x" + pair.Value);
+                        itemString += String.Join(", ", modifiedRequiredItemNames);
+                    }
+                    modifiedProduceItemNames.Add(itemString);
+                }
                 TextObject producesText = new TextObject("\n" + "{=homestead_current_placeable_produces}PRODUCES:\n" + String.Join(", ", modifiedProduceItemNames));
                 producesTextRaw = producesText.ToString();
             }
@@ -114,11 +120,25 @@ namespace Homesteads.Models {
                 int spaceIncrease = (int)element.Element("spaceIncrease");
                 int leisureIncrease = (int)element.Element("leisureIncrease");
 
-                List<string> produceItems = new();
+                List<HomesteadScenePlaceableProducedItem> produceItems = new();
                 XElement? produceItemsElement = element.Element("ProduceItems");
-                if (produceItemsElement != null)
-                    foreach (XElement produceItem in produceItemsElement.Descendants("produceItem"))
-                        produceItems.Add(produceItem.Value);
+                if (produceItemsElement != null) {
+                    foreach (XElement produceItem in produceItemsElement.Descendants("ProduceItem")) {
+                        string produceItemName = produceItem.Element("name").Value;
+                        int produceItemAmount = (int)produceItem.Element("amount");
+                        float dailyChance = (float)produceItem.Element("dailyChance");
+                        Dictionary<string, int> requiredItems = new();
+                        XElement? produceItemsRequiredItemsElement = produceItem.Element("RequiredItems");
+                        if (produceItemsRequiredItemsElement != null) {
+                            foreach (XElement requiredItem in produceItemsRequiredItemsElement.Descendants("RequiredItem")) {
+                                string requiredItemName = requiredItem.Element("name").Value;
+                                int requiredItemAmount = (int)requiredItem.Element("amount");
+                                requiredItems[requiredItemName] = requiredItemAmount;
+                            }
+                        }
+                        produceItems.Add(new HomesteadScenePlaceableProducedItem(produceItemName, produceItemAmount, dailyChance, requiredItems));
+                    }
+                }
 
                 Dictionary<string, int> itemsRequired = new();
                 XElement? itemsRequiredElement = element.Element("ItemRequirements");

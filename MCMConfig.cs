@@ -35,27 +35,31 @@ namespace Homesteads {
         [SettingPropertyGroup("Change Key Binds")]
         public string KeyBindSetPlayerSpawn { get; set; } = "O";
 
-        [SettingPropertyText("Rotate Up", Order = 6, HintText = "The button that is used to rotate the highlighted placeable upwards.", RequireRestart = false)]
+        [SettingPropertyText("Reset Rotation", Order = 6, HintText = "The button that is used to reset the rotation of the dummy placeable while in edit mode.", RequireRestart = false)]
+        [SettingPropertyGroup("Change Key Binds")]
+        public string KeyBindResetRotation { get; set; } = "I";
+
+        [SettingPropertyText("Rotate Up", Order = 7, HintText = "The button that is used to rotate the highlighted placeable upwards.", RequireRestart = false)]
         [SettingPropertyGroup("Change Key Binds")]
         public string KeyBindRotateUp { get; set; } = "D1";
 
-        [SettingPropertyText("Rotate Down", Order = 7, HintText = "The button that is used to rotate the highlighted placeable downwards.", RequireRestart = false)]
+        [SettingPropertyText("Rotate Down", Order = 8, HintText = "The button that is used to rotate the highlighted placeable downwards.", RequireRestart = false)]
         [SettingPropertyGroup("Change Key Binds")]
         public string KeyBindRotateDown { get; set; } = "D2";
 
-        [SettingPropertyText("Rotate Tilt Left", Order = 8, HintText = "The button that is used to tilt the highlighted placeable left.", RequireRestart = false)]
+        [SettingPropertyText("Rotate Tilt Left", Order = 9, HintText = "The button that is used to tilt the highlighted placeable left.", RequireRestart = false)]
         [SettingPropertyGroup("Change Key Binds")]
         public string KeyBindRotateTiltLeft { get; set; } = "D3";
 
-        [SettingPropertyText("Rotate Tilt Right", Order = 9, HintText = "The button that is used to tilt the highlighted placeable right.", RequireRestart = false)]
+        [SettingPropertyText("Rotate Tilt Right", Order = 10, HintText = "The button that is used to tilt the highlighted placeable right.", RequireRestart = false)]
         [SettingPropertyGroup("Change Key Binds")]
         public string KeyBindRotateTiltRight { get; set; } = "D4";
 
-        [SettingPropertyText("Rotate Turn Left", Order = 10, HintText = "The button that is used to turn the highlighted placeable left.", RequireRestart = false)]
+        [SettingPropertyText("Rotate Turn Left", Order = 11, HintText = "The button that is used to turn the highlighted placeable left.", RequireRestart = false)]
         [SettingPropertyGroup("Change Key Binds")]
         public string KeyBindRotateTurnLeft { get; set; } = "D5";
 
-        [SettingPropertyText("Rotate Turn Right", Order = 11, HintText = "The button that is used to turn the highlighted placeable right.", RequireRestart = false)]
+        [SettingPropertyText("Rotate Turn Right", Order = 12, HintText = "The button that is used to turn the highlighted placeable right.", RequireRestart = false)]
         [SettingPropertyGroup("Change Key Binds")]
         public string KeyBindRotateTurnRight { get; set; } = "D6";
 
@@ -73,6 +77,9 @@ namespace Homesteads {
         }
         public InputKey GetSetPlayerSpawnKey() {
             return GetKey(KeyBindSetPlayerSpawn, InputKey.O);
+        }
+        public InputKey GetResetRotationKey() {
+            return GetKey(KeyBindResetRotation, InputKey.I);
         }
         public InputKey GetRotateUpKey() {
             return GetKey(KeyBindRotateUp, InputKey.D1);

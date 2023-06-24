@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Extensions;
+using TaleWorlds.CampaignSystem.Roster;
 using TaleWorlds.Core;
 using TaleWorlds.Engine;
 using TaleWorlds.Library;
@@ -14,6 +15,52 @@ using TaleWorlds.MountAndBlade;
 
 namespace Homesteads {
     public static class Utils {
+		public static bool DoesItemRosterHaveItems(ItemRoster itemRoster, Dictionary<string, int> itemsRequired, bool takeItems = false) {
+			if (itemsRequired.Count == 0)
+				return true;
+
+			Dictionary<ItemObject, int> itemsToTake = new();
+			foreach (KeyValuePair<string, int> pair in itemsRequired) {
+				string[] itemIDs = pair.Key.Split('|');
+
+				ItemObject? item = null;
+				ItemRosterElement itemInItemRoster = ItemRosterElement.Invalid;
+				foreach (string itemID in itemIDs) {
+					// if the item exists
+					ItemObject? thisItem = Campaign.Current.ObjectManager.GetObject<ItemObject>(itemID);
+					if (thisItem == null) {
+						Utils.PrintDebugMessage(pair.Key + " IS NOT A VALID ITEM ID", 255, 0, 0);
+						continue;
+					}
+					// if the item is in the homestead stash
+					try {
+						itemInItemRoster = itemRoster.First(x => x.EquipmentElement.Item == thisItem);
+						// check for amount
+						if (itemInItemRoster.Amount < pair.Value) {
+							itemInItemRoster = ItemRosterElement.Invalid;
+							continue;
+                        }
+						// set the item to this item and break loop
+						item = thisItem;
+						break;
+					} catch (InvalidOperationException) {
+						continue;
+					}
+				}
+
+				if (item == null)
+					return false;
+
+				itemsToTake[item] = pair.Value;
+			}
+
+			if (takeItems)
+				foreach (KeyValuePair<ItemObject, int> pair in itemsToTake)
+					itemRoster.AddToCounts(pair.Key, -pair.Value);
+
+			return true;
+		}
+
 		public static GameEntity CreateGameEntityWithPrefab(string prefabName, Vec3 position, Mat3 rotation) {
 			MatrixFrame frame = MatrixFrame.Identity;
 			frame.rotation = rotation;

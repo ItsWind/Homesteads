@@ -89,6 +89,11 @@ namespace Homesteads.MissionLogics {
                 return;
             // Below this are keys only usable when the dummy entity is present
 
+            if (Input.IsKeyPressed(GlobalSettings<MCMConfig>.Instance.GetResetRotationKey())) {
+                buildingModeSavedRotation = Mat3.Identity;
+                return;
+            }
+
             if (Input.IsKeyPressed(GlobalSettings<MCMConfig>.Instance.GetCycleRightKey())) {
                 ChangeCurrentPlaceableIndex(1);
                 return;
@@ -153,7 +158,6 @@ namespace Homesteads.MissionLogics {
                 return;
 
             float change = dt * (isAdding ? 1 : -1);
-            MatrixFrame frame = dummyEntity.GetFrame();
 
             switch (typeOfRotation) {
                 case "x":
@@ -166,9 +170,6 @@ namespace Homesteads.MissionLogics {
                     buildingModeSavedRotation.RotateAboutUp(change);
                     break;
             }
-
-            frame.rotation = buildingModeSavedRotation;
-            dummyEntity.SetFrame(ref frame);
         }
 
         private void BuildingModeDummyEntityTick(float dt) {
@@ -179,6 +180,9 @@ namespace Homesteads.MissionLogics {
                 }
                 CreateBuildingModeDummyEntity();
                 dummyEntity.SetLocalPosition(positionLookingAt);
+                MatrixFrame frame = dummyEntity.GetFrame();
+                frame.rotation = buildingModeSavedRotation;
+                dummyEntity.SetFrame(ref frame);
             }
             else {
                 RemoveDummyEntity();
@@ -220,7 +224,7 @@ namespace Homesteads.MissionLogics {
                     continue;
                 for (int i = 0; i < dummyMetaMesh.MeshCount; i++) {
                     Mesh entityMesh = dummyMetaMesh.GetMeshAtIndex(i);
-                    entityMesh.SetMaterial(currentPlaceable.BuildPointsRequired <= homestead.GetHomesteadScene().BuildPointsLeftToUse ? homestead.GetHomesteadScene().CheckItemsRequiredForPlaceable(currentPlaceable, false) ? "plain_green" : "plain_red" : "plain_red");
+                    entityMesh.SetMaterial(currentPlaceable.BuildPointsRequired <= homestead.GetHomesteadScene().BuildPointsLeftToUse ? Utils.DoesItemRosterHaveItems(homestead.Stash, currentPlaceable.ItemRequirements) ? "plain_green" : "plain_red" : "plain_red");
                 }
             }
         }

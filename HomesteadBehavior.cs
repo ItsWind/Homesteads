@@ -13,6 +13,8 @@ using TaleWorlds.CampaignSystem.GameMenus;
 using TaleWorlds.CampaignSystem.Encounters;
 using TaleWorlds.CampaignSystem.Inventory;
 using System.Linq;
+using Helpers;
+using TaleWorlds.CampaignSystem.MapEvents;
 
 namespace Homesteads {
     public class HomesteadBehavior : CampaignBehaviorBase {
@@ -37,10 +39,28 @@ namespace Homesteads {
             CampaignEvents.AiHourlyTickEvent.AddNonSerializedListener(this, CheckHomesteadHourlyTick);
             CampaignEvents.DailyTickPartyEvent.AddNonSerializedListener(this, CheckHomesteadDailyTick);
 
+            // Set current homestead to null after player battles. This will only be relevant if exiting a homestead battle.
+            CampaignEvents.OnPlayerBattleEndEvent.AddNonSerializedListener(this, (mapEvent) => {
+                CurrentHomestead = null;
+            });
+
+            // Player join homestead being attacked if player is waiting in homestead
+            CampaignEvents.MapEventStarted.AddNonSerializedListener(this, (mapEvent, attacker, defender) => {
+                if (defender.MobileParty == null)
+                    return;
+                Homestead? homesteadAttacked = Homestead.GetFor(defender.MobileParty);
+                if (homesteadAttacked == null)
+                    return;
+                if (CurrentHomestead == homesteadAttacked) {
+                    PartyBase.MainParty.MapEventSide = defender.MapEventSide;
+                    GameMenu.ActivateGameMenu("encounter");
+                }
+            });
+
+            // Check if homestead menu needs to be closed after packing it up in dialog
             CampaignEvents.GameMenuOpened.AddNonSerializedListener(this, (args) => {
                 string gameMenuStringId = args.MenuContext.GameMenu.StringId;
 
-                // Check if homestead menu needs to be closed after packing it up in dialog
                 if (gameMenuStringId == "homestead_menu_main" && CurrentHomestead == null) {
                     PlayerEncounter.Finish();
                     return;
@@ -258,11 +278,13 @@ namespace Homesteads {
             AddClassDefinition(typeof(HomesteadScene), 2);
             AddClassDefinition(typeof(HomesteadSceneSavedEntity), 3);
             AddClassDefinition(typeof(HomesteadScenePlaceable), 4);
+            AddClassDefinition(typeof(HomesteadScenePlaceableProducedItem), 5);
         }
 
         protected override void DefineContainerDefinitions() {
             ConstructContainerDefinition(typeof(Dictionary<MobileParty, Homestead>));
             ConstructContainerDefinition(typeof(List<HomesteadSceneSavedEntity>));
+            ConstructContainerDefinition(typeof(List<HomesteadScenePlaceableProducedItem>));
         }
     }
 }
