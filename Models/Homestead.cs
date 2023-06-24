@@ -16,6 +16,7 @@ using TaleWorlds.Localization;
 using TaleWorlds.SaveSystem;
 using TaleWorlds.Core;
 using TaleWorlds.CampaignSystem.Encounters;
+using TaleWorlds.CampaignSystem.GameMenus;
 
 namespace Homesteads.Models {
     public class Homestead : PartyComponent {
@@ -49,8 +50,7 @@ namespace Homesteads.Models {
         public override void ChangePartyLeader(Hero newLeader) {
             Hero? oldLeader = leader;
 
-            if (newLeader != null)
-
+            //if (newLeader != null)
             leader = newLeader;
 
             if (newLeader != null) {
@@ -58,9 +58,21 @@ namespace Homesteads.Models {
                 if (oldLeader != null)
                     AddHeroToPartyAction.Apply(oldLeader, MobileParty.MainParty);
             }
+            // leader died if setting newLeader to null
+            else {
+                Utils.ShowMessageBox("A courier arrives...", "They bring you a message that bears bad news. " + oldLeader.Name.ToString() + " has died and " + name + " needs a new leader assigned to it.");
+                if (HomesteadBehavior.Instance.CurrentHomestead == this)
+                    if (PlayerEncounter.Current.IsPlayerWaiting)
+                        GameMenu.ActivateGameMenu("homestead_menu_wait_waiting");
+                    else
+                        GameMenu.ActivateGameMenu("homestead_menu_main");
+            }
 
+            // Keep this for setting down homesteads to not have the cancel button bug
             if (PartyScreenManager.PartyScreenLogic != null)
                 PartyScreenManager.PartyScreenLogic.DoneLogic(true);
+
+            SetGameTextsForMenus();
         }
 
         protected override void OnFinalize() {
@@ -172,7 +184,8 @@ namespace Homesteads.Models {
             }
 
             if (settlersArriving > 0)
-                Utils.PrintDebugMessage(settlersArriving + " settlers have arrived to stay at your homestead of " + name + "!");
+                Utils.PrintLocalizedMessage("homestead_settlers_have_arrived_to_stay", "{NUMBER_OF_SETTLERS} settlers have arrived to stay at your homestead of {HOMESTEAD_NAME}!", 0, 201, 0,
+                    ("NUMBER_OF_SETTLERS", settlersArriving.ToString()), ("HOMESTEAD_NAME", name));
         }
 
         private void DailyTickProduceItems() {
@@ -252,7 +265,7 @@ namespace Homesteads.Models {
         }
 
         private void DailyTickTierProgress() {
-            if (Tier >= 3)
+            if (Tier >= 3 || leader == null)
                 return;
 
             float leaderSkillMult = (leader.GetSkillValue(DefaultSkills.Steward)/2 + leader.GetSkillValue(DefaultSkills.Engineering)/2) / 100f;
@@ -268,7 +281,7 @@ namespace Homesteads.Models {
 
         private TextObject BuildInformationTextObject() {
             TextObject homesteadTitleText = new TextObject("{=homestead_menu_info_title}Homestead of ");
-            TextObject tierText = new TextObject(Tier < 3 ? "{=homestead_menu_info_tier}Tier: {TIER_LEVEL}\n({TIER_PROGRESS_PERCENT}% to next tier!)" : "{=homestead_menu_info_tier}Tier: {TIER_LEVEL}");
+            TextObject tierText = new TextObject(Tier < 3 ? "{=homestead_menu_info_tier}Tier: {TIER_LEVEL}\n({TIER_PROGRESS_PERCENT}% to next tier!)" : "{=homestead_menu_info_tier_max}Tier: {TIER_LEVEL}");
             tierText.SetTextVariable("TIER_LEVEL", Tier);
             tierText.SetTextVariable("TIER_PROGRESS_PERCENT", (float)Decimal.Round((decimal)TierProgress * 100.0m, 1));
 
@@ -280,7 +293,7 @@ namespace Homesteads.Models {
             extraSpaceText.SetTextVariable("EXTRA_SPACE", homesteadScene == null ? 0 : homesteadScene.TotalSpace);
             TextObject totalLeisureText = new TextObject("{=homestead_menu_info_leisure}Total Leisure: {TOTAL_LEISURE}");
             totalLeisureText.SetTextVariable("TOTAL_LEISURE", homesteadScene == null ? 0 : homesteadScene.TotalLeisure);
-            TextObject moraleText = new TextObject("{=homestead_menu_info_morale}Total Morale: {TOTAL_MORALE}\n" + MobileParty.MoraleExplained.GetExplanations());
+            TextObject moraleText = new TextObject("{=homestead_menu_info_morale}Total Morale: {TOTAL_MORALE}" + "\n" + MobileParty.MoraleExplained.GetExplanations());
             moraleText.SetTextVariable("TOTAL_MORALE", MobileParty.Morale);
 
             return new TextObject(homesteadTitleText.ToString() + Name.ToString() + " - " + tierText.ToString() + "\n" +
@@ -303,7 +316,10 @@ namespace Homesteads.Models {
                 return;
             GameTexts.SetVariable("CURRENT_HOMESTEAD_INFORMATION", HomesteadBehavior.Instance.CurrentHomestead.HomesteadInformation);
             GameTexts.SetVariable("CURRENT_HOMESTEAD_NAME", HomesteadBehavior.Instance.CurrentHomestead.Name);
-            GameTexts.SetVariable("CURRENT_HOMESTEAD_LEADER_NAME", HomesteadBehavior.Instance.CurrentHomestead.Leader.Name);
+            Hero? possibleLeader = HomesteadBehavior.Instance.CurrentHomestead.Leader;
+            //string leaderNameText = possibleLeader == null ? 
+            if (possibleLeader != null)
+                GameTexts.SetVariable("CURRENT_HOMESTEAD_LEADER_NAME", possibleLeader.Name);
         }
     }
 }

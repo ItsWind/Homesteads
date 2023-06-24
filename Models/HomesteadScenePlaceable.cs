@@ -30,8 +30,11 @@ namespace Homesteads.Models {
         public Dictionary<string, int> ItemRequirements;
         [SaveableField(10)]
         public List<HomesteadScenePlaceableProducedItem> ProduceItems;
+        [SaveableField(11)]
+        public string BuilderMenuCategoryString;
 
-        public HomesteadScenePlaceable(string displayName, string desc, string prefabName, int buildPointsRequired, int productivity, int space, int leisure, List<HomesteadScenePlaceableProducedItem> produceItems, Dictionary<string, int> itemRequirements) {
+        public HomesteadScenePlaceable(string builderMenuCategoryString, string displayName, string desc, string prefabName, int buildPointsRequired, int productivity, int space, int leisure, List<HomesteadScenePlaceableProducedItem> produceItems, Dictionary<string, int> itemRequirements) {
+            BuilderMenuCategoryString = builderMenuCategoryString;
             DisplayName = displayName;
             Description = "--------------------\n" + " - " + displayName + " - \n" + desc + "\n";
             PrefabName = prefabName;
@@ -55,7 +58,6 @@ namespace Homesteads.Models {
                 foreach (HomesteadScenePlaceableProducedItem item in ProduceItems) {
                     string itemString = item.ItemProducedID + " x" + item.AmountToProduce;
                     if (item.RequiredItemsToProduce.Count > 0) {
-                        Utils.PrintDebugMessage("YER");
                         itemString += " NEEDS ";
                         List<string> modifiedRequiredItemNames = new();
                         foreach (KeyValuePair<string, int> pair in item.RequiredItemsToProduce)
@@ -64,7 +66,7 @@ namespace Homesteads.Models {
                     }
                     modifiedProduceItemNames.Add(itemString);
                 }
-                TextObject producesText = new TextObject("\n" + "{=homestead_current_placeable_produces}PRODUCES:\n" + String.Join(", ", modifiedProduceItemNames));
+                TextObject producesText = new TextObject("\n" + "{=homestead_current_placeable_produces}PRODUCES:" + "\n" + String.Join(", ", modifiedProduceItemNames));
                 producesTextRaw = producesText.ToString();
             }
 
@@ -73,7 +75,7 @@ namespace Homesteads.Models {
                 List<string> modifiedItemRequirementStrings = new();
                 foreach (KeyValuePair<string, int> pair in itemRequirements)
                     modifiedItemRequirementStrings.Add(pair.Key + " x" + pair.Value);
-                TextObject itemRequirementsText = new TextObject("\n" + "{=homestead_current_placeable_item_requirements}ITEMS REQUIRED:\n" + String.Join(", ", modifiedItemRequirementStrings));
+                TextObject itemRequirementsText = new TextObject("\n" + "{=homestead_current_placeable_item_requirements}ITEMS REQUIRED:" + "\n" + String.Join(", ", modifiedItemRequirementStrings));
                 itemRequirementsTextRaw = itemRequirementsText.ToString();
             }
 
@@ -112,6 +114,7 @@ namespace Homesteads.Models {
                 if (tierRequired > tier)
                     continue;
 
+                string builderMenuCategory = element.Element("menuCategory").Value;
                 string displayName = element.Element("displayName").Value;
                 string description = element.Element("description").Value;
                 string prefabName = element.Element("prefabName").Value;
@@ -146,7 +149,7 @@ namespace Homesteads.Models {
                     foreach (XElement itemRequired in itemsRequiredElement.Descendants("Item"))
                         itemsRequired.Add(itemRequired.Element("name").Value, (int)itemRequired.Element("amount"));
 
-                HomesteadScenePlaceable placeable = new HomesteadScenePlaceable(displayName, description, prefabName, buildPointsRequired, productivityIncrease, spaceIncrease, leisureIncrease, produceItems, itemsRequired);
+                HomesteadScenePlaceable placeable = new HomesteadScenePlaceable(builderMenuCategory, displayName, description, prefabName, buildPointsRequired, productivityIncrease, spaceIncrease, leisureIncrease, produceItems, itemsRequired);
                 placeables.Add(placeable);
             }
 

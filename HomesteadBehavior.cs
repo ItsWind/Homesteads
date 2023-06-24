@@ -39,6 +39,15 @@ namespace Homesteads {
             CampaignEvents.AiHourlyTickEvent.AddNonSerializedListener(this, CheckHomesteadHourlyTick);
             CampaignEvents.DailyTickPartyEvent.AddNonSerializedListener(this, CheckHomesteadDailyTick);
 
+            CampaignEvents.BeforeHeroKilledEvent.AddNonSerializedListener(this, (hero1, hero2, detail, someBool) => {
+                foreach (Homestead homestead in HomesteadMobileParties.Values) {
+                    if (homestead.Leader == hero1) {
+                        homestead.ChangePartyLeader(null);
+                        break;
+                    }
+                }
+            });
+
             // Set current homestead to null after player battles. This will only be relevant if exiting a homestead battle.
             CampaignEvents.OnPlayerBattleEndEvent.AddNonSerializedListener(this, (mapEvent) => {
                 CurrentHomestead = null;
@@ -111,30 +120,34 @@ namespace Homesteads {
             starter.AddDialogLine("homestead_change_leader_accept", "homestead_change_leader_approval", "close_window", "okie dokie", () => {
                 return true;
             }, () => {
-                TextObject titleText = new TextObject("{=homestead_choose_new_leader}CHOOSE NEW HOMESTEAD LEADER");
-                Utils.ShowHeroSelectionScreen(titleText.ToString(), "", Campaign.Current.AliveHeroes.Where(x => x.PartyBelongedTo != null && x.PartyBelongedTo == MobileParty.MainParty && !x.IsHumanPlayerCharacter).ToList(), (elements) => {
-                    CurrentHomestead.ChangePartyLeader(elements[0].Identifier as Hero);
-                });
+                Utils.ShowSelectNewHomesteadLeaderScreen(CurrentHomestead);
             }, 500);
         }
 
         private void AddGameMenus(CampaignGameStarter starter) {
             Homestead.SetGameTextsForMenus();
 
-            starter.AddGameMenu("homestead_menu_main", "You arrive at your homestead of {CURRENT_HOMESTEAD_NAME}. What would you like to do?", null);
+            starter.AddGameMenu("homestead_menu_main", Utils.GetLocalizedString("{=homestead_gamemenu_text}You arrive at your homestead of {CURRENT_HOMESTEAD_NAME}. What would you like to do?"), null);
 
             // Talk to leader
-            starter.AddGameMenuOption("homestead_menu_main", "homestead_menu_talk_leader", "Talk to {CURRENT_HOMESTEAD_LEADER_NAME}", (args) => {
+            starter.AddGameMenuOption("homestead_menu_main", "homestead_menu_talk_leader", Utils.GetLocalizedString("{=homestead_gamemenu_talk_to_leader}Talk to {CURRENT_HOMESTEAD_LEADER_NAME}"), (args) => {
                 args.optionLeaveType = GameMenuOption.LeaveType.Conversation;
-                return true;
+                return CurrentHomestead.Leader != null;
             }, (args) => {
                 ConversationCharacterData playerCharData = new ConversationCharacterData(CharacterObject.PlayerCharacter, PartyBase.MainParty);
                 ConversationCharacterData leaderCharData = new ConversationCharacterData(CurrentHomestead.Leader.CharacterObject, CurrentHomestead.Party);
                 CampaignMission.OpenConversationMission(playerCharData, leaderCharData);
             });
+            // Assign new leader if no leader (leader died)
+            starter.AddGameMenuOption("homestead_menu_main", "homestead_menu_assign_leader", Utils.GetLocalizedString("{=homestead_gamemenu_assign_leader}Assign leader"), (args) => {
+                args.optionLeaveType = GameMenuOption.LeaveType.Manage;
+                return CurrentHomestead.Leader == null;
+            }, (args) => {
+                Utils.ShowSelectNewHomesteadLeaderScreen(CurrentHomestead, true);
+            });
 
             // Walk around
-            starter.AddGameMenuOption("homestead_menu_main", "homestead_menu_walk_around", "Walk around", (args) => {
+            starter.AddGameMenuOption("homestead_menu_main", "homestead_menu_walk_around", Utils.GetLocalizedString("{=homestead_gamemenu_walk_around}Walk around"), (args) => {
                 args.optionLeaveType = GameMenuOption.LeaveType.Mission;
                 return true;
             }, (args) => {
@@ -142,7 +155,7 @@ namespace Homesteads {
             });
 
             // - Manage homestead
-            starter.AddGameMenuOption("homestead_menu_main", "homestead_menu_goto_manage", "Manage homestead", (args) => {
+            starter.AddGameMenuOption("homestead_menu_main", "homestead_menu_goto_manage", Utils.GetLocalizedString("{=homestead_gamemenu_manage_homestead}Manage homestead"), (args) => {
                 args.optionLeaveType = GameMenuOption.LeaveType.Submenu;
                 return true;
             }, (args) => {
@@ -152,7 +165,7 @@ namespace Homesteads {
             starter.AddGameMenu("homestead_menu_manage_main", "{CURRENT_HOMESTEAD_INFORMATION}", null);
 
             // -> Rename homestead
-            starter.AddGameMenuOption("homestead_menu_manage_main", "homestead_menu_manage_rename", "Rename homestead", (args) => {
+            starter.AddGameMenuOption("homestead_menu_manage_main", "homestead_menu_manage_rename", Utils.GetLocalizedString("{=homestead_gamemenu_rename}Rename homestead"), (args) => {
                 args.optionLeaveType = GameMenuOption.LeaveType.Leaderboard;
                 return true;
             }, (args) => {
@@ -163,7 +176,7 @@ namespace Homesteads {
             });
 
             // -> Manage garrison
-            starter.AddGameMenuOption("homestead_menu_manage_main", "homestead_menu_manage_garrison", "Manage garrison", (args) => {
+            starter.AddGameMenuOption("homestead_menu_manage_main", "homestead_menu_manage_garrison", Utils.GetLocalizedString("{=homestead_gamemenu_manage_garrison}Manage garrison"), (args) => {
                 args.optionLeaveType = GameMenuOption.LeaveType.ManageGarrison;
                 return true;
             }, (args) => {
@@ -171,7 +184,7 @@ namespace Homesteads {
             });
 
             // -> Manage items
-            starter.AddGameMenuOption("homestead_menu_manage_main", "homestead_menu_manage_stash", "Manage food/stash", (args) => {
+            starter.AddGameMenuOption("homestead_menu_manage_main", "homestead_menu_manage_stash", Utils.GetLocalizedString("{=homestead_gamemenu_manage_stash}Manage food/stash"), (args) => {
                 args.optionLeaveType = GameMenuOption.LeaveType.OpenStash;
                 return true;
             }, (args) => {
@@ -179,7 +192,7 @@ namespace Homesteads {
             });
 
             // -> Deposit/withdraw gold
-            starter.AddGameMenuOption("homestead_menu_manage_main", "homestead_menu_manage_gold", "Deposit/withdraw gold", (args) => {
+            starter.AddGameMenuOption("homestead_menu_manage_main", "homestead_menu_manage_gold", Utils.GetLocalizedString("{=homestead_gamemenu_deposit_withdraw_gold}Deposit/withdraw gold"), (args) => {
                 args.optionLeaveType = GameMenuOption.LeaveType.Bribe;
                 return true;
             }, (args) => {
@@ -187,7 +200,7 @@ namespace Homesteads {
                     int amount = 0;
                     Int32.TryParse(text, out amount);
                     if (amount == 0) {
-                        Utils.PrintDebugMessage("Amount entered must be a valid number.");
+                        Utils.PrintLocalizedMessage("homestead_amount_entered_not_valid", "Amount entered must be a valid number.");
                         return;
                     }
                     string failReason;
@@ -199,7 +212,7 @@ namespace Homesteads {
             });
 
             // <- Manage back to main
-            starter.AddGameMenuOption("homestead_menu_manage_main", "homestead_menu_manage_back", "Back", (args) => {
+            starter.AddGameMenuOption("homestead_menu_manage_main", "homestead_menu_manage_back", Utils.GetLocalizedString("{=homestead_gamemenu_back}Back"), (args) => {
                 args.optionLeaveType = GameMenuOption.LeaveType.Leave;
                 return true;
             }, (args) => {
@@ -207,19 +220,19 @@ namespace Homesteads {
             }, true);
 
             // Wait
-            starter.AddGameMenuOption("homestead_menu_main", "homestead_menu_wait", "Wait here", (args) => {
+            starter.AddGameMenuOption("homestead_menu_main", "homestead_menu_wait", Utils.GetLocalizedString("{=homestead_gamemenu_wait}Wait here"), (args) => {
                 args.optionLeaveType = GameMenuOption.LeaveType.Wait;
                 return true;
             }, (args) => {
                 GameMenu.SwitchToMenu("homestead_menu_wait_waiting");
             });
-            starter.AddWaitGameMenu("homestead_menu_wait_waiting", "Waiting...", (args) => {
+            starter.AddWaitGameMenu("homestead_menu_wait_waiting", Utils.GetLocalizedString("{=homestead_gamemenu_waiting}Waiting..."), (args) => {
                 PlayerEncounter.Current.IsPlayerWaiting = true;
             }, (args) => {
                 args.optionLeaveType = GameMenuOption.LeaveType.Wait;
                 return true;
             }, null, null, GameMenu.MenuAndOptionType.WaitMenuHideProgressAndHoursOption);
-            starter.AddGameMenuOption("homestead_menu_wait_waiting", "homestead_menu_wait_leave", "Stop waiting", (args) => {
+            starter.AddGameMenuOption("homestead_menu_wait_waiting", "homestead_menu_wait_leave", Utils.GetLocalizedString("{=homestead_gamemenu_stop_waiting}Stop waiting"), (args) => {
                 args.optionLeaveType = GameMenuOption.LeaveType.Leave;
                 return true;
             }, (args) => {
@@ -228,7 +241,7 @@ namespace Homesteads {
             }, true);
 
             // Leave
-            starter.AddGameMenuOption("homestead_menu_main", "homestead_menu_leave", "Leave", (args) => {
+            starter.AddGameMenuOption("homestead_menu_main", "homestead_menu_leave", Utils.GetLocalizedString("{=homestead_gamemenu_leave}Leave"), (args) => {
                 args.optionLeaveType = GameMenuOption.LeaveType.Leave;
                 return true;
             }, (args) => {

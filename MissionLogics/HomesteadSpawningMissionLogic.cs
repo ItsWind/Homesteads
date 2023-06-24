@@ -22,17 +22,28 @@ namespace Homesteads.MissionLogics {
 
         private Homestead homestead;
 
+        private CampaignAgentComponent? rightHand = null;
+
         public HomesteadSpawningMissionLogic(Homestead homestead) {
             Instance = this;
             this.homestead = homestead;
         }
 
         public override void AfterStart() {
-            homestead.GetHomesteadScene().AddAllSavedEntitiesToCurrentScene();
+            HomesteadScene homesteadScene = homestead.GetHomesteadScene();
+            //homesteadScene.AddAllSavedNavMeshDisables();
+            homesteadScene.AddAllSavedEntitiesToCurrentScene();
+        }
+
+        public override void OnMissionTick(float dt) {
+            //if (rightHand == null)
+                //return;
+            //rightHand.AgentNavigator.SetTargetFrame(Agent.Main.Position.ToWorldPosition(), 0f);
         }
 
         public void HandleSpawning() {
             SpawnPlayer();
+            //SpawnRightHandToPlayer();
             SpawnTroops();
             SpawnPrisoners();
 
@@ -51,6 +62,23 @@ namespace Homesteads.MissionLogics {
                 Mission.Scene.GetNavMeshCenterPosition(0, ref playerSpawnPos);
 
             SpawnHomesteadAgent(null, playerSpawnPos, PartyBase.MainParty, CharacterObject.PlayerCharacter, Agent.ControllerType.Player, false);
+        }
+
+        private void SpawnRightHandToPlayer() {
+            CharacterObject? rightHandObject = null;
+            try {
+                rightHandObject = PartyBase.MainParty.MemberRoster.GetTroopRoster().Where(x => x.Character.HeroObject != null && x.Character != CharacterObject.PlayerCharacter).Select(x => x.Character).First();
+            }
+            catch (InvalidOperationException) {
+                return;
+            }
+            Agent agent = SpawnHomesteadAgent(null, Agent.Main.Position, PartyBase.MainParty, rightHandObject, Agent.ControllerType.AI, false);
+            rightHand = agent.GetComponent<CampaignAgentComponent>();
+            rightHand.CreateAgentNavigator();
+
+            /*foreach (int faceIndex in homestead.GetHomesteadScene().NavMeshFacesDisabled) {
+                rightHand.SetAgentExcludeStateForFaceGroupId(faceIndex, false);
+            }*/
         }
 
         private void SpawnTroops() {
@@ -80,7 +108,7 @@ namespace Homesteads.MissionLogics {
             }
         }
 
-        private void SpawnHomesteadAgent(GameEntity? spawnEntity, Vec3 positionToSpawnAt, PartyBase fromParty, CharacterObject characterObject, Agent.ControllerType controllerType, bool civilianEquipment) {
+        private Agent SpawnHomesteadAgent(GameEntity? spawnEntity, Vec3 positionToSpawnAt, PartyBase fromParty, CharacterObject characterObject, Agent.ControllerType controllerType, bool civilianEquipment) {
             MatrixFrame spawnFrame = spawnEntity == null ? MatrixFrame.Identity : spawnEntity.GetFrame();
             UsablePlace? usablePlace = spawnEntity == null ? null : spawnEntity.GetFirstScriptOfType<UsablePlace>();
 
@@ -103,6 +131,8 @@ namespace Homesteads.MissionLogics {
                 agent.SetActionSet(ref animData);
                 agent.GetComponent<CampaignAgentComponent>().CreateAgentNavigator().SetTarget(usablePlace);
             }
+
+            return agent;
         }
 
         private void SpawnAnimals(string animalNameId) {

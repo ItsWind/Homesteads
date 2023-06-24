@@ -6,6 +6,8 @@ using System.Text;
 using System.Threading.Tasks;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Extensions;
+using TaleWorlds.CampaignSystem.GameMenus;
+using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Roster;
 using TaleWorlds.Core;
 using TaleWorlds.Engine;
@@ -15,6 +17,12 @@ using TaleWorlds.MountAndBlade;
 
 namespace Homesteads {
     public static class Utils {
+		public static int GetNavMeshFaceIndexForPosition(Vec3 position) {
+			PathFaceRecord faceRecord = new PathFaceRecord();
+			Mission.Current.Scene.GetNavMeshFaceIndex(ref faceRecord, position, false);
+			return faceRecord.FaceIndex;
+        }
+
 		public static bool DoesItemRosterHaveItems(ItemRoster itemRoster, Dictionary<string, int> itemsRequired, bool takeItems = false) {
 			if (itemsRequired.Count == 0)
 				return true;
@@ -71,6 +79,14 @@ namespace Homesteads {
 			return entity;
         }
 
+		public static void ShowSelectNewHomesteadLeaderScreen(Homestead homestead, bool fromHomesteadMenu = false) {
+			TextObject titleText = new TextObject("{=homestead_choose_new_leader}CHOOSE NEW HOMESTEAD LEADER");
+			Utils.ShowHeroSelectionScreen(titleText.ToString(), "", Campaign.Current.AliveHeroes.Where(x => x.PartyBelongedTo != null && x.PartyBelongedTo == MobileParty.MainParty && !x.IsHumanPlayerCharacter).ToList(), (elements) => {
+				homestead.ChangePartyLeader(elements[0].Identifier as Hero);
+				if (fromHomesteadMenu)
+					GameMenu.SwitchToMenu("homestead_menu_main");
+			});
+		}
 		public static void ShowHeroSelectionScreen(string title, string text, List<Hero> heroes, Action<List<InquiryElement>> onPressedOk) {
 			List<InquiryElement> elements = new();
 			foreach (Hero hero in heroes) {
@@ -81,9 +97,26 @@ namespace Homesteads {
 			MBInformationManager.ShowMultiSelectionInquiry(inquiry, true, true);
 		}
 
+		public static void ShowMessageBox(string title, string text) {
+			InquiryData inquiry = new InquiryData(title, text, true, false, GameTexts.FindText("str_done").ToString(), null, null, null);
+			InformationManager.ShowInquiry(inquiry, true, true);
+        }
+
 		public static void ShowTextInputMessage(string title, string text, Action<string> onPressedOk) {
 			TextInquiryData inquiry = new TextInquiryData(title, text, true, false, GameTexts.FindText("str_done").ToString(), null, onPressedOk, null);
 			InformationManager.ShowTextInquiry(inquiry, true, true);
+		}
+
+		public static string GetLocalizedString(string str, params (string, string)[] textVars) {
+			TextObject textObject = new TextObject(str);
+			foreach ((string, string) value in textVars)
+				textObject.SetTextVariable(value.Item1, value.Item2);
+			return textObject.ToString();
+		}
+		public static void PrintLocalizedMessage(string localizationString, string str, float r = 255, float g = 255, float b = 255, params (string, string)[] textVars) {
+			float[] newValues = { r / 255.0f, g / 255.0f, b / 255.0f };
+			Color col = new(newValues[0], newValues[1], newValues[2]);
+			InformationManager.DisplayMessage(new InformationMessage(GetLocalizedString("{=" + localizationString + "}" + str, textVars), col));
 		}
 
 		public static void PrintDebugMessage(string str, float r = 255, float g = 255, float b = 255) {
