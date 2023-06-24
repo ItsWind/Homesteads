@@ -198,7 +198,15 @@ namespace Homesteads.Models {
             TotalProductivity += placeable.ProductivityIncrease;
             TotalSpace += placeable.SpaceIncrease;
             TotalLeisure += placeable.LeisureIncrease;
-            ProduceItems.AddRange(placeable.ProduceItems);
+
+            // try/catch to fix update V2.3
+            try {
+                ProduceItems.AddRange(placeable.ProduceItems);
+            }
+            catch (NullReferenceException) {
+                if (ProduceItems == null)
+                    ProduceItems = new();
+            }
         }
     }
 }

@@ -316,10 +316,8 @@ namespace Homesteads.Models {
                 return;
             GameTexts.SetVariable("CURRENT_HOMESTEAD_INFORMATION", HomesteadBehavior.Instance.CurrentHomestead.HomesteadInformation);
             GameTexts.SetVariable("CURRENT_HOMESTEAD_NAME", HomesteadBehavior.Instance.CurrentHomestead.Name);
-            Hero? possibleLeader = HomesteadBehavior.Instance.CurrentHomestead.Leader;
-            //string leaderNameText = possibleLeader == null ? 
-            if (possibleLeader != null)
-                GameTexts.SetVariable("CURRENT_HOMESTEAD_LEADER_NAME", possibleLeader.Name);
+            //Utils.PrintDebugMessage(HomesteadBehavior.Instance.CurrentHomestead.Leader.ToString());
+            GameTexts.SetVariable("CURRENT_HOMESTEAD_LEADER_NAME", HomesteadBehavior.Instance.CurrentHomestead.Leader == null ? "" : HomesteadBehavior.Instance.CurrentHomestead.Leader.Name.ToString());
         }
     }
 }

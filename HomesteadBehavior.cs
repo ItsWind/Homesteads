@@ -125,12 +125,12 @@ namespace Homesteads {
         }
 
         private void AddGameMenus(CampaignGameStarter starter) {
-            Homestead.SetGameTextsForMenus();
+            //Homestead.SetGameTextsForMenus();
 
-            starter.AddGameMenu("homestead_menu_main", Utils.GetLocalizedString("{=homestead_gamemenu_text}You arrive at your homestead of {CURRENT_HOMESTEAD_NAME}. What would you like to do?"), null);
+            starter.AddGameMenu("homestead_menu_main", "You arrive at your homestead of {CURRENT_HOMESTEAD_NAME}. What would you like to do?", null);
 
             // Talk to leader
-            starter.AddGameMenuOption("homestead_menu_main", "homestead_menu_talk_leader", Utils.GetLocalizedString("{=homestead_gamemenu_talk_to_leader}Talk to {CURRENT_HOMESTEAD_LEADER_NAME}"), (args) => {
+            starter.AddGameMenuOption("homestead_menu_main", "homestead_menu_talk_leader", "Talk to {CURRENT_HOMESTEAD_LEADER_NAME}", (args) => {
                 args.optionLeaveType = GameMenuOption.LeaveType.Conversation;
                 return CurrentHomestead.Leader != null;
             }, (args) => {
