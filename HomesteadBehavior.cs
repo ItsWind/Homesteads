@@ -133,7 +133,7 @@ namespace Homesteads {
             // Talk to leader
             starter.AddGameMenuOption("homestead_menu_main", "homestead_menu_talk_leader", "Talk to {CURRENT_HOMESTEAD_LEADER_NAME}", (args) => {
                 args.optionLeaveType = GameMenuOption.LeaveType.Conversation;
-                return CurrentHomestead.Leader != null;
+                return CurrentHomestead == null ? false : CurrentHomestead.Leader != null;
             }, (args) => {
                 ConversationCharacterData playerCharData = new ConversationCharacterData(CharacterObject.PlayerCharacter, PartyBase.MainParty);
                 ConversationCharacterData leaderCharData = new ConversationCharacterData(CurrentHomestead.Leader.CharacterObject, CurrentHomestead.Party);
@@ -142,7 +142,7 @@ namespace Homesteads {
             // Assign new leader if no leader (leader died)
             starter.AddGameMenuOption("homestead_menu_main", "homestead_menu_assign_leader", Utils.GetLocalizedString("{=homestead_gamemenu_assign_leader}Assign leader"), (args) => {
                 args.optionLeaveType = GameMenuOption.LeaveType.Manage;
-                return CurrentHomestead.Leader == null;
+                return CurrentHomestead == null ? false : CurrentHomestead.Leader == null;
             }, (args) => {
                 Utils.ShowSelectNewHomesteadLeaderScreen(CurrentHomestead, true);
             });
