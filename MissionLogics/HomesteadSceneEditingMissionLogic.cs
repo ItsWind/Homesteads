@@ -16,6 +16,7 @@ namespace Homesteads.MissionLogics {
         private List<HomesteadScenePlaceable> validPlaceablesInCurrentCategory => allPlaceables.Where(x => x.BuilderMenuCategoryString == currentCategoryString).ToList();
 
         private Homestead homestead;
+        private HomesteadScene homesteadScene;
         // 0 = no editing, 1 = building, 2 = destroying
         private int editModeType = 0;
         private GameEntity? gameEntityLookingAt;
@@ -23,11 +24,13 @@ namespace Homesteads.MissionLogics {
         private int currentPlaceableIndex = 0;
         private GameEntity? dummyEntity;
         private Mat3 buildingModeSavedRotation = Mat3.Identity;
-        private HomesteadScenePlaceable currentPlaceable => validPlaceablesInCurrentCategory[currentPlaceableIndex];
+        private HomesteadScenePlaceable? currentPlaceableOverride = null;
+        private HomesteadScenePlaceable currentPlaceable => currentPlaceableOverride == null ? validPlaceablesInCurrentCategory[currentPlaceableIndex] : currentPlaceableOverride;
         private string currentCategoryString = "Misc";
         
         public HomesteadSceneEditingMissionLogic(Homestead homestead) {
             this.homestead = homestead;
+            homesteadScene = homestead.GetHomesteadScene();
             allPlaceables = HomesteadScenePlaceable.GetTierGroup(homestead.Tier);
         }
 
@@ -71,14 +74,34 @@ namespace Homesteads.MissionLogics {
             // Below this are edit mode keys
 
             if (Input.IsKeyPressed(GlobalSettings<MCMConfig>.Instance.GetPlaceKey())) {
+                // Press Q in building mode
                 if (editModeType == 1 && dummyEntity != null) {
-                    homestead.GetHomesteadScene().AddPlaceableEntityToCurrentScene(currentPlaceable, dummyEntity.GlobalPosition, dummyEntity.GetFrame().rotation);
+                    homesteadScene.AddPlaceableEntityToCurrentScene(currentPlaceable, dummyEntity.GlobalPosition, dummyEntity.GetFrame().rotation);
                     RemoveDummyEntity();
-                } else if (editModeType == 2 && gameEntityLookingAt != null) {
-                    homestead.GetHomesteadScene().RemovePlaceableEntityFromCurrentScene(gameEntityLookingAt);
-                }/* else if (editModeType == 3) {
-                    homestead.GetHomesteadScene().PlayerToggleNavMeshAtCurrentPosition();
-                }*/
+                }
+                // Press Q in delete mode
+                else if (editModeType == 2 && gameEntityLookingAt != null) {
+                    homesteadScene.RemovePlaceableEntityFromCurrentScene(gameEntityLookingAt);
+                }
+                // Press Q in edit mode
+                else if (editModeType == 3) {
+                    // If placeable is picked up
+                    if (currentPlaceableOverride != null && dummyEntity != null) {
+                        homesteadScene.AddPlaceableEntityToCurrentScene(currentPlaceable, dummyEntity.GlobalPosition, dummyEntity.GetFrame().rotation, true);
+                        currentPlaceableOverride = null;
+                        RemoveDummyEntity();
+                    }
+                    // If NO placeable is picked up
+                    else if (currentPlaceableOverride == null && gameEntityLookingAt != null) {
+                        GameEntity? prefabParent;
+                        HomesteadScenePlaceable? placeableToCopy = homesteadScene.GetHomesteadSceneEntityPlaceable(gameEntityLookingAt, out prefabParent);
+                        if (placeableToCopy == null || prefabParent == null)
+                            return;
+
+                        currentPlaceableOverride = placeableToCopy;
+                        homesteadScene.RemovePlaceableEntityFromCurrentScene(prefabParent);
+                    }
+                }
                 return;
             }
 
@@ -93,22 +116,8 @@ namespace Homesteads.MissionLogics {
                 return;
             // Below this are keys only usable when the dummy entity is present
 
-            if (Input.IsKeyPressed(GlobalSettings<MCMConfig>.Instance.GetSwitchBuilderModeCategoryKey())) {
-                SwitchBuilderMenuCategory();
-                return;
-            }
-
             if (Input.IsKeyPressed(GlobalSettings<MCMConfig>.Instance.GetResetRotationKey())) {
                 buildingModeSavedRotation = Mat3.Identity;
-                return;
-            }
-
-            if (Input.IsKeyPressed(GlobalSettings<MCMConfig>.Instance.GetCycleRightKey())) {
-                ChangeCurrentPlaceableIndex(1);
-                return;
-            }
-            if (Input.IsKeyPressed(GlobalSettings<MCMConfig>.Instance.GetCycleLeftKey())) {
-                ChangeCurrentPlaceableIndex(-1);
                 return;
             }
 
@@ -139,17 +148,39 @@ namespace Homesteads.MissionLogics {
                 RotateDummyEntity(dt, "z", false);
                 return;
             }
+
+            if (editModeType != 1)
+                return;
+
+            if (Input.IsKeyPressed(GlobalSettings<MCMConfig>.Instance.GetSwitchBuilderModeCategoryKey())) {
+                SwitchBuilderMenuCategory();
+                return;
+            }
+
+            if (Input.IsKeyPressed(GlobalSettings<MCMConfig>.Instance.GetCycleRightKey())) {
+                ChangeCurrentPlaceableIndex(1);
+                return;
+            }
+            if (Input.IsKeyPressed(GlobalSettings<MCMConfig>.Instance.GetCycleLeftKey())) {
+                ChangeCurrentPlaceableIndex(-1);
+                return;
+            }
         }
 
         private void SwitchEditMode() {
+            // If placeable is picked up in edit mode
+            if (currentPlaceableOverride != null) {
+                Utils.PrintLocalizedMessage("homestead_edit_mode_switch_when_building_picked_up", "You can't switch your edit mode until you place the currently picked up placeable.", 255, 80, 80);
+                return;
+            }
+
             editModeType++;
-            if (editModeType > 2)
+            if (editModeType > 3)
                 editModeType = 0;
             string toPrint = "";
             switch (editModeType) {
                 case 0:
                     toPrint = Utils.GetLocalizedString("{=homestead_cancelled_edit_mode}You are no longer making any changes.");
-                    //homestead.GetHomesteadScene().ToggleNavMeshDisablersVisibility(false);
                     break;
                 case 1:
                     toPrint = Utils.GetLocalizedString("{=homestead_entered_building_mode}You are now in building mode. The keys listed are default keys. Press Q, by default, to place. Press { and } to scroll through placeable prefabs. Press \" to switch categories. Press 1-2 3-4 5-6 to rotate the entity.");
@@ -157,10 +188,9 @@ namespace Homesteads.MissionLogics {
                 case 2:
                     toPrint = Utils.GetLocalizedString("{=homestead_entered_delete_mode}You are now in delete mode. Press Q, by default, to delete the currently looked at entity.");
                     break;
-                /*case 3:
-                    toPrint = "You are now in navmesh mode. Press Q to disable/enable the currently stood on navmesh.";
-                    homestead.GetHomesteadScene().ToggleNavMeshDisablersVisibility(true);
-                    break;*/
+                case 3:
+                    toPrint = Utils.GetLocalizedString("{=homestead_entered_edit_mode}You are now in edit mode. Press Q, by default, to pick up the currently looked at entity.");
+                    break;
             }
             Utils.PrintDebugMessage(toPrint, 201, 0, 0);
             if (editModeType == 1)
@@ -201,11 +231,16 @@ namespace Homesteads.MissionLogics {
         }
 
         private void BuildingModeDummyEntityTick(float dt) {
-            if (editModeType == 1) {
+            if (editModeType == 1 || editModeType == 3) {
                 if (!positionLookingAt.IsValid) {
                     RemoveDummyEntity();
                     return;
                 }
+
+                // Check if in edit mode and haven't picked up a building
+                if (editModeType == 3 && currentPlaceableOverride == null)
+                    return;
+
                 CreateBuildingModeDummyEntity();
                 dummyEntity.SetLocalPosition(positionLookingAt);
                 MatrixFrame frame = dummyEntity.GetFrame();
@@ -252,7 +287,7 @@ namespace Homesteads.MissionLogics {
                     continue;
                 for (int i = 0; i < dummyMetaMesh.MeshCount; i++) {
                     Mesh entityMesh = dummyMetaMesh.GetMeshAtIndex(i);
-                    entityMesh.SetMaterial(currentPlaceable.BuildPointsRequired <= homestead.GetHomesteadScene().BuildPointsLeftToUse ? Utils.DoesItemRosterHaveItems(homestead.Stash, currentPlaceable.ItemRequirements) ? "plain_green" : "plain_red" : "plain_red");
+                    entityMesh.SetMaterial(currentPlaceableOverride != null ? "plain_green" : currentPlaceable.BuildPointsRequired <= homestead.GetHomesteadScene().BuildPointsLeftToUse ? Utils.DoesItemRosterHaveItems(homestead.Stash, currentPlaceable.ItemRequirements) ? "plain_green" : "plain_red" : "plain_red");
                 }
             }
         }
