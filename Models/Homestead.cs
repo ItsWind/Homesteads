@@ -50,22 +50,12 @@ namespace Homesteads.Models {
         public override void ChangePartyLeader(Hero newLeader) {
             Hero? oldLeader = leader;
 
-            //if (newLeader != null)
             leader = newLeader;
 
             if (newLeader != null) {
                 AddHeroToPartyAction.Apply(newLeader, MobileParty);
                 if (oldLeader != null)
                     AddHeroToPartyAction.Apply(oldLeader, MobileParty.MainParty);
-            }
-            // leader died if setting newLeader to null
-            else {
-                Utils.ShowMessageBox("A courier arrives...", "They bring you a message that bears bad news. " + oldLeader.Name.ToString() + " has died and " + name + " needs a new leader assigned to it.");
-                if (HomesteadBehavior.Instance.CurrentHomestead == this)
-                    if (PlayerEncounter.Current.IsPlayerWaiting)
-                        GameMenu.ActivateGameMenu("homestead_menu_wait_waiting");
-                    else
-                        GameMenu.ActivateGameMenu("homestead_menu_main");
             }
 
             // Keep this for setting down homesteads to not have the cancel button bug
@@ -87,6 +77,16 @@ namespace Homesteads.Models {
                 homesteadScene = new HomesteadScene(sceneName, this);
             }
             return homesteadScene;
+        }
+
+        public void PartyLeaderDied() {
+            Utils.ShowMessageBox("A courier arrives...", "They bring you a message that bears bad news. " + leader.Name.ToString() + " has died and " + name + " needs a new leader assigned to it.");
+            if (HomesteadBehavior.Instance.CurrentHomestead == this)
+                if (PlayerEncounter.Current.IsPlayerWaiting)
+                    GameMenu.ActivateGameMenu("homestead_menu_wait_waiting");
+                else
+                    GameMenu.ActivateGameMenu("homestead_menu_main");
+            leader = null;
         }
 
         public void ChangeName(string newName) {

@@ -39,10 +39,11 @@ namespace Homesteads {
             CampaignEvents.AiHourlyTickEvent.AddNonSerializedListener(this, CheckHomesteadHourlyTick);
             CampaignEvents.DailyTickPartyEvent.AddNonSerializedListener(this, CheckHomesteadDailyTick);
 
+            // catch homestead leader dying or being killed
             CampaignEvents.BeforeHeroKilledEvent.AddNonSerializedListener(this, (hero1, hero2, detail, someBool) => {
                 foreach (Homestead homestead in HomesteadMobileParties.Values) {
                     if (homestead.Leader == hero1) {
-                        homestead.ChangePartyLeader(null);
+                        homestead.PartyLeaderDied();
                         break;
                     }
                 }
