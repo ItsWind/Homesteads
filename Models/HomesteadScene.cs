@@ -1,4 +1,5 @@
 ﻿using Homesteads.MissionLogics;
+using SandBox.Objects.AnimationPoints;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -33,6 +34,8 @@ namespace Homesteads.Models {
         public Vec3 PlayerSpawnPosition = Vec3.Invalid;
         [SaveableField(10)]
         public List<HomesteadScenePlaceableProducedItem> ProduceItems = new();
+        [SaveableField(11)]
+        public Mat3 PlayerSpawnRotation = Mat3.Identity;
 
         public int MaxBuildPoints => Homestead.Tier == 0 ? 15 : (Homestead.Tier * 30) + (Homestead.Tier * 15);
         public int BuildPointsLeftToUse => MaxBuildPoints - CurrentlyUsedBuildPoints;
@@ -62,9 +65,6 @@ namespace Homesteads.Models {
             HomesteadSceneSavedEntity savedEntity = new HomesteadSceneSavedEntity(placeable, entity.GlobalPosition, entity.GetFrame().rotation);
             SavedEntities.Add(savedEntity);
             loadedSavedEntities.Add(entity, savedEntity);
-
-            Utils.PrintLocalizedMessage("homestead_show_build_points_left_to_use", "{AMOUNT_OF_BP_LEFT} BUILD POINTS LEFT TO USE.", 255, 255, 255,
-                ("AMOUNT_OF_BP_LEFT", BuildPointsLeftToUse.ToString()));
         }
 
         public void RemovePlaceableEntityFromCurrentScene(GameEntity entity) {
@@ -77,11 +77,7 @@ namespace Homesteads.Models {
             RemovePlaceableEntityValues(placeableData);
 
             SavedEntities.Remove(loadedSavedEntities[prefabParentEntity]);
-            prefabParentEntity.RemoveAllChildren();
             prefabParentEntity.Remove(0);
-
-            Utils.PrintLocalizedMessage("homestead_show_build_points_left_to_use", "{AMOUNT_OF_BP_LEFT} BUILD POINTS LEFT TO USE.", 255, 255, 255,
-                ("AMOUNT_OF_BP_LEFT", BuildPointsLeftToUse.ToString()));
         }
 
         public HomesteadScenePlaceable? GetHomesteadSceneEntityPlaceable(GameEntity entity, out GameEntity? prefabParentEntity) {
@@ -145,6 +141,30 @@ namespace Homesteads.Models {
                 if (ProduceItems == null)
                     ProduceItems = new();
             }
+
+            HomesteadMissionView.TriggerSceneChanges();
+
+            // Give back items required based on engineering skill
+            if (placeable.ItemRequirements == null || placeable.ItemRequirements.Count == 0)
+                return;
+
+            int engineeringSkill = Hero.MainHero.GetSkillValue(DefaultSkills.Engineering);
+
+            foreach (KeyValuePair<string, int> pair in placeable.ItemRequirements) {
+                string[] itemIDs = pair.Key.Split('|');
+                string itemID = itemIDs.GetRandomElementInefficiently();
+                ItemObject? itemToGive = Campaign.Current.ObjectManager.GetObject<ItemObject>(itemID);
+                if (itemToGive == null)
+                    continue;
+
+                float percentageToGiveBack = MathF.Lerp(0.05f, 0.5f, engineeringSkill / 300f);
+                int amountToGiveBack = (int)Math.Round(pair.Value * percentageToGiveBack);
+                if (amountToGiveBack <= 0)
+                    continue;
+
+                Hero.MainHero.AddSkillXp(DefaultSkills.Engineering, percentageToGiveBack * 100);
+                Homestead.Stash.AddToCounts(itemToGive, amountToGiveBack);
+            }
         }
 
         private void AddPlaceableEntityValues(HomesteadScenePlaceable placeable) {
@@ -162,6 +182,8 @@ namespace Homesteads.Models {
                 if (ProduceItems == null)
                     ProduceItems = new();
             }
+
+            HomesteadMissionView.TriggerSceneChanges();
         }
     }
 }

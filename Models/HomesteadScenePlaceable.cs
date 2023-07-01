@@ -36,7 +36,7 @@ namespace Homesteads.Models {
         public HomesteadScenePlaceable(string builderMenuCategoryString, string displayName, string desc, string prefabName, int buildPointsRequired, int productivity, int space, int leisure, List<HomesteadScenePlaceableProducedItem> produceItems, Dictionary<string, int> itemRequirements) {
             BuilderMenuCategoryString = builderMenuCategoryString;
             DisplayName = displayName;
-            Description = "--------------------\n" + " - " + displayName + " - \n" + desc + "\n";
+            Description = "--------------------\n" + desc + "\n";
             PrefabName = prefabName;
             BuildPointsRequired = buildPointsRequired;
             ProductivityIncrease = productivity;
@@ -66,8 +66,8 @@ namespace Homesteads.Models {
                     }
                     modifiedProduceItemNames.Add(itemString);
                 }
-                TextObject producesText = new TextObject("\n" + "{=homestead_current_placeable_produces}PRODUCES:" + "\n" + String.Join(", ", modifiedProduceItemNames));
-                producesTextRaw = producesText.ToString();
+                TextObject producesText = new TextObject("\n" + "{=homestead_current_placeable_produces}PRODUCES:" + "\n" + String.Join(", \n", modifiedProduceItemNames));
+                producesTextRaw = producesText.ToString() + "\n--------------------";
             }
 
             string itemRequirementsTextRaw = "";
@@ -75,16 +75,18 @@ namespace Homesteads.Models {
                 List<string> modifiedItemRequirementStrings = new();
                 foreach (KeyValuePair<string, int> pair in itemRequirements)
                     modifiedItemRequirementStrings.Add(pair.Key + " x" + pair.Value);
-                TextObject itemRequirementsText = new TextObject("\n" + "{=homestead_current_placeable_item_requirements}ITEMS REQUIRED:" + "\n" + String.Join(", ", modifiedItemRequirementStrings));
+                TextObject itemRequirementsText = new TextObject("\n" + "{=homestead_current_placeable_item_requirements}ITEMS REQUIRED:" + "\n" + String.Join(", \n", modifiedItemRequirementStrings));
                 itemRequirementsTextRaw = itemRequirementsText.ToString();
             }
+
+            if (producesTextRaw != "" || itemRequirementsTextRaw != "")
+                increasesText = new TextObject(increasesText.ToString() + "\n--------------------");
 
             Description += "--------------------\n" +
                 buildPointsRequiredText.ToString() +
                 increasesText.ToString() +
                 producesTextRaw +
-                itemRequirementsTextRaw +
-                "\n--------------------";
+                itemRequirementsTextRaw;
         }
 
         public static List<HomesteadScenePlaceable> GetTierGroup(int tier) {

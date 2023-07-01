@@ -47,6 +47,7 @@ namespace Homesteads {
                     new HomesteadSpawningMissionLogic(homestead),
                     new HomesteadSceneEditingMissionLogic(homestead),
                     new HomesteadConversationMissionLogic(),
+                    new HomesteadMissionView(homestead),
                 });
         }
     }

@@ -1,12 +1,8 @@
 ﻿using Homesteads.Models;
 using SandBox;
-using SandBox.Objects.AnimationPoints;
 using SandBox.Objects.Usables;
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.AgentOrigins;
 using TaleWorlds.CampaignSystem.Party;
@@ -21,8 +17,9 @@ namespace Homesteads.MissionLogics {
         public static HomesteadSpawningMissionLogic Instance;
 
         private Homestead homestead;
+        private HomesteadScene homesteadScene;
 
-        private CampaignAgentComponent? rightHand = null;
+        private List<SoundEvent> sounds = new();
 
         public HomesteadSpawningMissionLogic(Homestead homestead) {
             Instance = this;
@@ -30,20 +27,18 @@ namespace Homesteads.MissionLogics {
         }
 
         public override void AfterStart() {
-            HomesteadScene homesteadScene = homestead.GetHomesteadScene();
-            //homesteadScene.AddAllSavedNavMeshDisables();
+            homesteadScene = homestead.GetHomesteadScene();
             homesteadScene.AddAllSavedEntitiesToCurrentScene();
         }
 
-        public override void OnMissionTick(float dt) {
-            //if (rightHand == null)
-                //return;
-            //rightHand.AgentNavigator.SetTargetFrame(Agent.Main.Position.ToWorldPosition(), 0f);
+        public override void OnEndMissionInternal() {
+            foreach (SoundEvent sound in sounds)
+                sound.Release();
         }
 
         public void HandleSpawning() {
             SpawnPlayer();
-            //SpawnRightHandToPlayer();
+
             SpawnTroops();
             SpawnPrisoners();
 
@@ -54,67 +49,103 @@ namespace Homesteads.MissionLogics {
             SpawnAnimals("sheep");
             SpawnAnimals("cat");
             SpawnAnimals("dog");
+
+            HomesteadTutorial.WalkAround();
         }
 
         private void SpawnPlayer() {
-            Vec3 playerSpawnPos = homestead.GetHomesteadScene().PlayerSpawnPosition;
+            Vec3 playerSpawnPos = homesteadScene.PlayerSpawnPosition;
+            Mat3 playerSpawnRot = homesteadScene.PlayerSpawnRotation;
             if (!playerSpawnPos.IsValid)
                 Mission.Scene.GetNavMeshCenterPosition(0, ref playerSpawnPos);
+            // Check if rotation is null for players that are updating
+            if (playerSpawnRot == null)
+                playerSpawnRot = Mat3.Identity;
 
-            SpawnHomesteadAgent(null, playerSpawnPos, PartyBase.MainParty, CharacterObject.PlayerCharacter, Agent.ControllerType.Player, false);
-        }
-
-        private void SpawnRightHandToPlayer() {
-            CharacterObject? rightHandObject = null;
-            try {
-                rightHandObject = PartyBase.MainParty.MemberRoster.GetTroopRoster().Where(x => x.Character.HeroObject != null && x.Character != CharacterObject.PlayerCharacter).Select(x => x.Character).First();
-            }
-            catch (InvalidOperationException) {
-                return;
-            }
-            Agent agent = SpawnHomesteadAgent(null, Agent.Main.Position, PartyBase.MainParty, rightHandObject, Agent.ControllerType.AI, false);
-            rightHand = agent.GetComponent<CampaignAgentComponent>();
-            rightHand.CreateAgentNavigator();
-
-            /*foreach (int faceIndex in homestead.GetHomesteadScene().NavMeshFacesDisabled) {
-                rightHand.SetAgentExcludeStateForFaceGroupId(faceIndex, false);
-            }*/
+            SpawnHomesteadAgent(null, playerSpawnPos, playerSpawnRot, PartyBase.MainParty, CharacterObject.PlayerCharacter, Agent.ControllerType.Player, "", false);
         }
 
         private void SpawnTroops() {
-            SpawnNPCs("spawnpoint_homestead_npc", HomesteadBehavior.Instance.CurrentHomestead.Troops);
+            TroopRoster homesteadLeaderRoster = TroopRoster.CreateDummyTroopRoster();
+            homesteadLeaderRoster.Add(homestead.Troops.ToFlattenedRoster().Where(x => x.Troop.HeroObject == homestead.Leader));
+            bool usedLeader = SpawnNPCs("spawnpoint_homestead_leader", homesteadLeaderRoster);
+
+            TroopRoster spouseRoster = TroopRoster.CreateDummyTroopRoster();
+            spouseRoster.Add(MobileParty.MainParty.MemberRoster.ToFlattenedRoster().Where(x => x.Troop.HeroObject != null && x.Troop.HeroObject.Spouse == Hero.MainHero));
+            spouseRoster.Add(homestead.Troops.ToFlattenedRoster().Where(x => x.Troop.HeroObject != null && x.Troop.HeroObject != homestead.Leader && x.Troop.HeroObject.Spouse == Hero.MainHero));
+            bool usedSpouse = SpawnNPCs("spawnpoint_homestead_spouse", spouseRoster);
+
+            TroopRoster companionRoster = TroopRoster.CreateDummyTroopRoster();
+            companionRoster.Add(MobileParty.MainParty.MemberRoster.ToFlattenedRoster().Where(x => x.Troop.HeroObject != null && !x.Troop.IsPlayerCharacter && x.Troop.HeroObject.Spouse != Hero.MainHero));
+            companionRoster.Add(homestead.Troops.ToFlattenedRoster().Where(x => x.Troop.HeroObject != null && x.Troop.HeroObject != homestead.Leader && !x.Troop.IsPlayerCharacter && x.Troop.HeroObject.Spouse != Hero.MainHero));
+            bool usedCompanions = SpawnNPCs("spawnpoint_homestead_companion", companionRoster);
+
+            TroopRoster generalRoster = TroopRoster.CreateDummyTroopRoster();
+            generalRoster.Add(homestead.Troops.ToFlattenedRoster());
+            if (usedLeader)
+                generalRoster.RemoveIf(x => x.Character.HeroObject == homestead.Leader);
+            if (usedSpouse)
+                generalRoster.RemoveIf(x => x.Character.HeroObject != null && x.Character.HeroObject.Spouse == Hero.MainHero);
+            if (usedCompanions)
+                generalRoster.RemoveIf(x => x.Character.HeroObject != null && x.Character.HeroObject.Spouse != Hero.MainHero);
+            SpawnNPCs("spawnpoint_homestead_npc", generalRoster);
         }
 
         private void SpawnPrisoners() {
-            SpawnNPCs("spawnpoint_homestead_prisoner", HomesteadBehavior.Instance.CurrentHomestead.Prisoners);
+            SpawnNPCs("spawnpoint_homestead_prisoner", homestead.Prisoners);
         }
 
-        private void SpawnNPCs(string spawnpointTag, TroopRoster roster) {
+        private bool SpawnNPCs(string spawnpointTag, TroopRoster roster) {
             List<GameEntity> entitiesWithNpcSpawnTag = Mission.Scene.FindEntitiesWithTag(spawnpointTag).ToList();
-            List<CharacterObject> npcs = roster.ToFlattenedRoster().Troops.ToList();
+            if (entitiesWithNpcSpawnTag.Count == 0)
+                return false;
 
-            Dictionary<GameEntity, int> entityTimesUsed = new();
+            List<CharacterObject> npcs = roster.ToFlattenedRoster().Troops.ToList();
 
             foreach (CharacterObject npc in npcs) {
                 if (entitiesWithNpcSpawnTag.Count <= 0)
                     break;
 
                 GameEntity spawnEntity = entitiesWithNpcSpawnTag.GetRandomElementInefficiently();
-                Vec3 positionToSpawnAt = new Vec3(spawnEntity.GlobalPosition.X, spawnEntity.GlobalPosition.Y, Mission.Scene.GetGroundHeightAtPosition(spawnEntity.GlobalPosition));
 
-                SpawnHomesteadAgent(spawnEntity, positionToSpawnAt, HomesteadBehavior.Instance.CurrentHomestead.Party, npc, Agent.ControllerType.AI, true);
+                string actionSetCodeSuffix = ActionSetCode.Villager1ActionSetSuffix;
+                bool shouldWearCivEquipment = true;
+                HandleSpawnEntitySpecialTags(spawnEntity, ref actionSetCodeSuffix, ref shouldWearCivEquipment);
+
+                Vec3 positionToSpawnAt = new Vec3(spawnEntity.GlobalPosition.X, spawnEntity.GlobalPosition.Y, Mission.Scene.GetGroundHeightAtPosition(spawnEntity.GlobalPosition));
+                Mat3 rotationToSpawnWith = spawnEntity.GetFrame().rotation;
+
+                SpawnHomesteadAgent(spawnEntity, positionToSpawnAt, rotationToSpawnWith, homestead.Party, npc, Agent.ControllerType.AI, actionSetCodeSuffix, shouldWearCivEquipment);
 
                 entitiesWithNpcSpawnTag.Remove(spawnEntity);
             }
+
+            return true;
         }
 
-        private Agent SpawnHomesteadAgent(GameEntity? spawnEntity, Vec3 positionToSpawnAt, PartyBase fromParty, CharacterObject characterObject, Agent.ControllerType controllerType, bool civilianEquipment) {
-            MatrixFrame spawnFrame = spawnEntity == null ? MatrixFrame.Identity : spawnEntity.GetFrame();
+        private void HandleSpawnEntitySpecialTags(GameEntity entity, ref string actionSetCodeSuffix, ref bool shouldWearCivEquipment) {
+            if (entity.HasTag("homestead_flute_musician")) {
+                int randomFluteSoundIndex = MBRandom.RandomInt(1, 3); // max is exclusive
+                int eventID = SoundEvent.GetEventIdFromString("homestead/music/flute" + randomFluteSoundIndex);
+                SoundEvent sound = SoundEvent.CreateEvent(eventID, Mission.Scene);
+                sound.PlayInPosition(entity.GlobalPosition);
+                sounds.Add(sound);
+
+                actionSetCodeSuffix = ActionSetCode.MusicianSuffix;
+            }
+            else if (entity.HasTag("homestead_guard")) {
+                shouldWearCivEquipment = false;
+
+                actionSetCodeSuffix = ActionSetCode.GuardSuffix;
+            }
+        }
+
+        private Agent SpawnHomesteadAgent(GameEntity? spawnEntity, Vec3 positionToSpawnAt, Mat3 rotationToSpawnWith, PartyBase fromParty, CharacterObject characterObject, Agent.ControllerType controllerType, string actionSetCodeSuffix, bool civilianEquipment) {
             UsablePlace? usablePlace = spawnEntity == null ? null : spawnEntity.GetFirstScriptOfType<UsablePlace>();
 
             AgentBuildData buildData = new AgentBuildData(characterObject).Team(Mission.PlayerTeam).InitialPosition(positionToSpawnAt);
 
-            Vec2 vec = spawnFrame.rotation.f.AsVec2;
+            Vec2 vec = rotationToSpawnWith.f.AsVec2;
             vec = vec.Normalized();
 
             AgentBuildData buildData2 = buildData.InitialDirection(vec).CivilianEquipment(civilianEquipment).NoHorses(civilianEquipment).NoWeapons(false).ClothingColor1(Mission.PlayerTeam.Color).ClothingColor2(Mission.PlayerTeam.Color2).TroopOrigin(new PartyAgentOrigin(fromParty, characterObject)).Controller(controllerType);
@@ -126,7 +157,7 @@ namespace Homesteads.MissionLogics {
 
             Agent agent = SpawnAgentAndTickAnimations(buildData2);
             if (usablePlace != null) {
-                AnimationSystemData animData = agent.Monster.FillAnimationSystemData(MBGlobals.GetActionSetWithSuffix(agent.Monster, agent.IsFemale, ActionSetCode.MusicianSuffix), agent.Character.GetStepSize(), false);
+                AnimationSystemData animData = agent.Monster.FillAnimationSystemData(MBGlobals.GetActionSetWithSuffix(agent.Monster, agent.IsFemale, actionSetCodeSuffix), agent.Character.GetStepSize(), false);
 
                 agent.SetActionSet(ref animData);
                 agent.GetComponent<CampaignAgentComponent>().CreateAgentNavigator().SetTarget(usablePlace);

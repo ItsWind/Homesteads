@@ -7,14 +7,11 @@ using TaleWorlds.CampaignSystem.Roster;
 using TaleWorlds.CampaignSystem.Actions;
 using Homesteads.Models;
 using TaleWorlds.SaveSystem;
-using TaleWorlds.Library;
 using TaleWorlds.CampaignSystem.Conversation;
 using TaleWorlds.CampaignSystem.GameMenus;
 using TaleWorlds.CampaignSystem.Encounters;
 using TaleWorlds.CampaignSystem.Inventory;
-using System.Linq;
-using Helpers;
-using TaleWorlds.CampaignSystem.MapEvents;
+using TaleWorlds.Core;
 
 namespace Homesteads {
     public class HomesteadBehavior : CampaignBehaviorBase {
@@ -29,6 +26,7 @@ namespace Homesteads {
             }
         }
         public Dictionary<MobileParty, Homestead> HomesteadMobileParties = new();
+        public int TutorialStage = 0;
 
         public HomesteadBehavior() {
             Instance = this;
@@ -81,6 +79,7 @@ namespace Homesteads {
         public override void SyncData(IDataStore dataStore) {
             dataStore.SyncData("CurrentHomestead", ref currentHomestead);
             dataStore.SyncData("HomesteadMobileParties", ref HomesteadMobileParties);
+            dataStore.SyncData("TutorialStage", ref TutorialStage);
         }
 
         private void AddGameMenusAndDialogs(CampaignGameStarter starter) {
@@ -108,6 +107,8 @@ namespace Homesteads {
             starter.AddDialogLine("homestead_teardown_accept", "homestead_teardown_approval", "close_window", "okie dokie", () => {
                 return true;
             }, () => {
+                Hero.MainHero.ChangeHeroGold(CurrentHomestead.GoldStored);
+                MobileParty.MainParty.ItemRoster.Add(CurrentHomestead.Stash);
                 AddHeroToPartyAction.Apply(CurrentHomestead.Leader, MobileParty.MainParty, true);
                 MergePartiesAction.Apply(PartyBase.MainParty, CurrentHomestead.Party);
                 CurrentHomestead = null;
@@ -128,10 +129,10 @@ namespace Homesteads {
         private void AddGameMenus(CampaignGameStarter starter) {
             //Homestead.SetGameTextsForMenus();
 
-            starter.AddGameMenu("homestead_menu_main", "You arrive at your homestead of {CURRENT_HOMESTEAD_NAME}. What would you like to do?", null);
+            starter.AddGameMenu("homestead_menu_main", Utils.GetLocalizedString("{=homestead_gamemenu_main_text1}You arrive at your homestead of ") + "{CURRENT_HOMESTEAD_NAME}. " + Utils.GetLocalizedString("{=homestead_gamemenu_main_text2}What would you like to do?"), null);
 
             // Talk to leader
-            starter.AddGameMenuOption("homestead_menu_main", "homestead_menu_talk_leader", "Talk to {CURRENT_HOMESTEAD_LEADER_NAME}", (args) => {
+            starter.AddGameMenuOption("homestead_menu_main", "homestead_menu_talk_leader", Utils.GetLocalizedString("{=homestead_gamemenu_talk_leader}Talk to ") + "{CURRENT_HOMESTEAD_LEADER_NAME}", (args) => {
                 args.optionLeaveType = GameMenuOption.LeaveType.Conversation;
                 return CurrentHomestead == null ? false : CurrentHomestead.Leader != null;
             }, (args) => {
@@ -162,6 +163,7 @@ namespace Homesteads {
             }, (args) => {
                 Homestead.SetGameTextsForMenus();
                 GameMenu.SwitchToMenu("homestead_menu_manage_main");
+                HomesteadTutorial.ManagingHomestead();
             });
             starter.AddGameMenu("homestead_menu_manage_main", "{CURRENT_HOMESTEAD_INFORMATION}", null);
 
@@ -170,8 +172,7 @@ namespace Homesteads {
                 args.optionLeaveType = GameMenuOption.LeaveType.Leaderboard;
                 return true;
             }, (args) => {
-                Utils.ShowTextInputMessage("Name Homestead", "What would you like to name this homestead?", (name) => {
-                    CurrentHomestead.ChangeName(name);
+                Utils.ShowNameHomesteadScreen(CurrentHomestead, () => {
                     GameMenu.SwitchToMenu("homestead_menu_manage_main");
                 });
             });
@@ -197,9 +198,11 @@ namespace Homesteads {
                 args.optionLeaveType = GameMenuOption.LeaveType.Bribe;
                 return true;
             }, (args) => {
-                Utils.ShowTextInputMessage("Deposit/Withdraw Gold", "Enter an amount to deposit or withdraw. A negative number means you will withdraw.", (text) => {
+                string title = Utils.GetLocalizedString("{=homestead_goldchange_title}Deposit/Withdraw Gold");
+                string text = Utils.GetLocalizedString("{=homestead_goldchange_text}Enter an amount to deposit or withdraw. A negative number means you will withdraw.");
+                Utils.ShowTextInputMessage(title, text, (input) => {
                     int amount = 0;
-                    Int32.TryParse(text, out amount);
+                    Int32.TryParse(input, out amount);
                     if (amount == 0) {
                         Utils.PrintLocalizedMessage("homestead_amount_entered_not_valid", "Amount entered must be a valid number.");
                         return;
@@ -268,9 +271,7 @@ namespace Homesteads {
             MobileParty homesteadParty = MobileParty.CreateParty("homestead_" + leaderHero.StringId, component);
             homesteadParty.InitializeMobilePartyAroundPosition(new TroopRoster(homesteadParty.Party), new TroopRoster(homesteadParty.Party), MobileParty.MainParty.Position2D, 1f);
 
-            Utils.ShowTextInputMessage("Name Homestead", "What would you like to name this homestead?", (name) => {
-                component.ChangeName(name);
-            });
+            Utils.ShowNameHomesteadScreen(component);
 
             AddHeroToPartyAction.Apply(leaderHero, homesteadParty);
             if (PartyScreenManager.PartyScreenLogic != null)
@@ -281,6 +282,12 @@ namespace Homesteads {
             homesteadParty.Party.Visuals.SetMapIconAsDirty();
 
             HomesteadMobileParties[homesteadParty] = component;
+
+            float leaderSkillMult = (leaderHero.GetSkillValue(DefaultSkills.Steward) / 2 + leaderHero.GetSkillValue(DefaultSkills.Engineering) / 2) / 100f;
+            int startingTier = (int)Math.Floor(leaderSkillMult);
+            float startingProgress = leaderSkillMult % 1f;
+            component.Tier = startingTier;
+            component.TierProgress = startingProgress;
         }
     }
 

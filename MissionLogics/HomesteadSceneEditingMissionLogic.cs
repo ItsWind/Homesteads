@@ -107,7 +107,9 @@ namespace Homesteads.MissionLogics {
 
             if (Input.IsKeyPressed(GlobalSettings<MCMConfig>.Instance.GetSetPlayerSpawnKey())) {
                 Vec3 newPlayerSpawnPosition = new Vec3(Agent.Main.Position.X, Agent.Main.Position.Y, Mission.Scene.GetGroundHeightAtPosition(Agent.Main.Position));
-                homestead.GetHomesteadScene().PlayerSpawnPosition = newPlayerSpawnPosition;
+                Mat3 newPlayerSpawnRotation = Agent.Main.Frame.rotation;
+                homesteadScene.PlayerSpawnRotation = newPlayerSpawnRotation;
+                homesteadScene.PlayerSpawnPosition = newPlayerSpawnPosition;
                 Utils.PrintLocalizedMessage("homestead_new_player_spawn_set", "New player spawn position set!", 0, 201, 0);
                 return;
             }
@@ -184,17 +186,19 @@ namespace Homesteads.MissionLogics {
                     break;
                 case 1:
                     toPrint = Utils.GetLocalizedString("{=homestead_entered_building_mode}You are now in building mode. The keys listed are default keys. Press Q, by default, to place. Press { and } to scroll through placeable prefabs. Press \" to switch categories. Press 1-2 3-4 5-6 to rotate the entity.");
+                    HomesteadMissionView.SetPlaceableBoxVisibility(true);
+                    HomesteadMissionView.SetStatVisibility(true);
                     break;
                 case 2:
                     toPrint = Utils.GetLocalizedString("{=homestead_entered_delete_mode}You are now in delete mode. Press Q, by default, to delete the currently looked at entity.");
+                    HomesteadMissionView.SetPlaceableBoxVisibility(false);
                     break;
                 case 3:
                     toPrint = Utils.GetLocalizedString("{=homestead_entered_edit_mode}You are now in edit mode. Press Q, by default, to pick up the currently looked at entity.");
+                    HomesteadMissionView.SetStatVisibility(false);
                     break;
             }
             Utils.PrintDebugMessage(toPrint, 201, 0, 0);
-            if (editModeType == 1)
-                Utils.PrintDebugMessage(currentPlaceable.Description);
         }
 
         private void SwitchBuilderMenuCategory() {
@@ -209,6 +213,8 @@ namespace Homesteads.MissionLogics {
 
             Utils.PrintLocalizedMessage("homestead_switched_building_mode_category", "BUILD CATEGORY SWITCHED TO: {NEW_CATEGORY_NAME}", 0, 201, 0,
                 ("NEW_CATEGORY_NAME", currentCategoryString));
+
+            RemoveDummyEntity();
         }
 
         private void RotateDummyEntity(float dt, string typeOfRotation, bool isAdding = true) {
@@ -260,7 +266,6 @@ namespace Homesteads.MissionLogics {
                 currentPlaceableIndex = 0;
 
             RemoveDummyEntity();
-            Utils.PrintDebugMessage(currentPlaceable.Description);
         }
 
         private void CreateBuildingModeDummyEntity() {
@@ -272,6 +277,8 @@ namespace Homesteads.MissionLogics {
             foreach (GameEntity entity in allEntitiesInDummy)
                 entity.SetPhysicsState(false, true);
             SetBuildingModeDummyEntityColor(allEntitiesInDummy);
+
+            HomesteadMissionView.ChangeCurrentPlaceable(currentPlaceable.DisplayName, currentPlaceable.Description);
         }
 
         private void SetBuildingModeDummyEntityColor(List<GameEntity>? allEntitiesInDummy = null) {

@@ -79,6 +79,17 @@ namespace Homesteads {
 			return entity;
         }
 
+		public static void ShowNameHomesteadScreen(Homestead homestead, Action? doneAction = null) {
+			string title = GetLocalizedString("{=homestead_rename_title}Name Homestead");
+			string text = GetLocalizedString("{=homestead_rename_text}What would you like to name this homestead?");
+			ShowTextInputMessage(title, text, (name) => {
+				homestead.ChangeName(name);
+
+				if (doneAction != null)
+					doneAction();
+			});
+		}
+
 		public static void ShowSelectNewHomesteadLeaderScreen(Homestead homestead, bool fromHomesteadMenu = false) {
 			TextObject titleText = new TextObject("{=homestead_choose_new_leader}CHOOSE NEW HOMESTEAD LEADER");
 			Utils.ShowHeroSelectionScreen(titleText.ToString(), "", Campaign.Current.AliveHeroes.Where(x => x.PartyBelongedTo != null && x.PartyBelongedTo == MobileParty.MainParty && !x.IsHumanPlayerCharacter).ToList(), (elements) => {
@@ -97,9 +108,9 @@ namespace Homesteads {
 			MBInformationManager.ShowMultiSelectionInquiry(inquiry, true, true);
 		}
 
-		public static void ShowMessageBox(string title, string text) {
+		public static void ShowMessageBox(string title, string text, bool pauseGameActiveState = true, bool priority = true) {
 			InquiryData inquiry = new InquiryData(title, text, true, false, GameTexts.FindText("str_done").ToString(), null, null, null);
-			InformationManager.ShowInquiry(inquiry, true, true);
+			InformationManager.ShowInquiry(inquiry, pauseGameActiveState, priority);
         }
 
 		public static void ShowTextInputMessage(string title, string text, Action<string> onPressedOk) {

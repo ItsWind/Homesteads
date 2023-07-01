@@ -107,7 +107,7 @@ namespace Homesteads.Models {
                     failReason = new TextObject("{=homestead_withdraw_gold_failreason}This homestead does not have that much gold stored!").ToString();
                     return false;
                 }
-                Hero.MainHero.Gold += amountToChangeAbs;
+                Hero.MainHero.ChangeHeroGold(amountToChangeAbs);
                 GoldStored -= amountToChangeAbs;
                 iconPath = "str_you_received_gold_with_icon";
                 soundPath = "event:/ui/notification/coins_positive";
@@ -118,7 +118,7 @@ namespace Homesteads.Models {
                     failReason = new TextObject("{=homestead_deposit_gold_failreason}You do not have that much gold!").ToString();
                     return false;
                 }
-                Hero.MainHero.Gold -= amountToChange;
+                Hero.MainHero.ChangeHeroGold(-amountToChange);
                 GoldStored += amountToChange;
                 iconPath = "str_gold_removed_with_icon";
                 soundPath = "event:/ui/notification/coins_negative";

@@ -33,6 +33,7 @@ namespace Homesteads.Patches {
             PlayerEncounter.Current.SetupFields(attackerParty, defenderParty);
 
             GameMenu.ActivateGameMenu("homestead_menu_main");
+            HomesteadTutorial.LaunchedMenu();
 
             // skip treating the party like an actual party
             return false;
