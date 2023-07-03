@@ -279,7 +279,7 @@ namespace Homesteads {
 
             homesteadParty.ActualClan = Hero.MainHero.Clan;
             homesteadParty.ShouldJoinPlayerBattles = true;
-            homesteadParty.Party.Visuals.SetMapIconAsDirty();
+            homesteadParty.Party.Visuals.SetMapIconAsDirty(); //SetVisualAsDirty();
 
             HomesteadMobileParties[homesteadParty] = component;
 

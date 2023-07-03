@@ -17,10 +17,9 @@ using TaleWorlds.MountAndBlade;
 
 namespace Homesteads {
     public static class Utils {
-		public static int GetNavMeshFaceIndexForPosition(Vec3 position) {
-			PathFaceRecord faceRecord = new PathFaceRecord();
-			Mission.Current.Scene.GetNavMeshFaceIndex(ref faceRecord, position, false);
-			return faceRecord.FaceIndex;
+		public static ItemObject? GetItemFromID(string itemID) {
+			ItemObject? item = Campaign.Current.ObjectManager.GetObject<ItemObject>(itemID);
+			return item;
         }
 
 		public static bool DoesItemRosterHaveItems(ItemRoster itemRoster, Dictionary<string, int> itemsRequired, bool takeItems = false) {

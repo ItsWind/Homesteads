@@ -23,6 +23,7 @@ namespace Homesteads.MissionLogics {
         private Vec3 positionLookingAt;
         private int currentPlaceableIndex = 0;
         private GameEntity? dummyEntity;
+        private Vec3 buildingModeSavedUpDown = Vec3.Zero;
         private Mat3 buildingModeSavedRotation = Mat3.Identity;
         private HomesteadScenePlaceable? currentPlaceableOverride = null;
         private HomesteadScenePlaceable currentPlaceable => currentPlaceableOverride == null ? validPlaceablesInCurrentCategory[currentPlaceableIndex] : currentPlaceableOverride;
@@ -120,6 +121,7 @@ namespace Homesteads.MissionLogics {
 
             if (Input.IsKeyPressed(GlobalSettings<MCMConfig>.Instance.GetResetRotationKey())) {
                 buildingModeSavedRotation = Mat3.Identity;
+                buildingModeSavedUpDown = Vec3.Zero;
                 return;
             }
 
@@ -148,6 +150,15 @@ namespace Homesteads.MissionLogics {
             }
             if (Input.IsKeyDown(GlobalSettings<MCMConfig>.Instance.GetRotateTurnRightKey())) {
                 RotateDummyEntity(dt, "z", false);
+                return;
+            }
+            // up/down
+            if (Input.IsKeyDown(GlobalSettings<MCMConfig>.Instance.GetMoveUpKey())) {
+                buildingModeSavedUpDown += Vec3.Up * dt;
+                return;
+            }
+            if (Input.IsKeyDown(GlobalSettings<MCMConfig>.Instance.GetMoveDownKey())) {
+                buildingModeSavedUpDown -= Vec3.Up * dt;
                 return;
             }
 
@@ -248,7 +259,7 @@ namespace Homesteads.MissionLogics {
                     return;
 
                 CreateBuildingModeDummyEntity();
-                dummyEntity.SetLocalPosition(positionLookingAt);
+                dummyEntity.SetLocalPosition(positionLookingAt + buildingModeSavedUpDown);
                 MatrixFrame frame = dummyEntity.GetFrame();
                 frame.rotation = buildingModeSavedRotation;
                 dummyEntity.SetFrame(ref frame);

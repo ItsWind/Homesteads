@@ -101,8 +101,6 @@ namespace Homesteads.Models {
 
             foreach (HomesteadSceneSavedEntity savedEntity in SavedEntities.ToList())
                 AddSavedEntityToCurrentScene(savedEntity);
-
-            HomesteadSpawningMissionLogic.Instance.HandleSpawning();
         }
 
         private void AddSavedEntityToCurrentScene(HomesteadSceneSavedEntity savedEntity) {

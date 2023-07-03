@@ -67,6 +67,14 @@ namespace Homesteads {
         [SettingPropertyGroup("Change Key Binds")]
         public string KeyBindRotateTurnRight { get; set; } = "D6";
 
+        [SettingPropertyText("Move Up", Order = 14, HintText = "The button that is used to move the highlighted placeable upwards.", RequireRestart = false)]
+        [SettingPropertyGroup("Change Key Binds")]
+        public string KeyBindMoveUp { get; set; } = "D7";
+
+        [SettingPropertyText("Move Down", Order = 15, HintText = "The button that is used to move the highlighted placeable downwards.", RequireRestart = false)]
+        [SettingPropertyGroup("Change Key Binds")]
+        public string KeyBindMoveDown { get; set; } = "D8";
+
         public InputKey GetEditModeKey() {
             return GetKey(KeyBindEditMode, InputKey.P);
         }
@@ -105,6 +113,12 @@ namespace Homesteads {
         }
         public InputKey GetRotateTurnRightKey() {
             return GetKey(KeyBindRotateTurnRight, InputKey.D6);
+        }
+        public InputKey GetMoveUpKey() {
+            return GetKey(KeyBindMoveUp, InputKey.D7);
+        }
+        public InputKey GetMoveDownKey() {
+            return GetKey(KeyBindMoveDown, InputKey.D8);
         }
 
         private InputKey GetKey(string toUse, InputKey defaultKey) {

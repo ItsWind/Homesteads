@@ -14,15 +14,12 @@ using TaleWorlds.MountAndBlade;
 
 namespace Homesteads.MissionLogics {
     public class HomesteadSpawningMissionLogic : MissionLogic {
-        public static HomesteadSpawningMissionLogic Instance;
-
         private Homestead homestead;
         private HomesteadScene homesteadScene;
 
         private List<SoundEvent> sounds = new();
 
         public HomesteadSpawningMissionLogic(Homestead homestead) {
-            Instance = this;
             this.homestead = homestead;
         }
 
@@ -31,12 +28,22 @@ namespace Homesteads.MissionLogics {
             homesteadScene.AddAllSavedEntitiesToCurrentScene();
         }
 
+        // Handle spawning in mission tick so that spawns don't fall through floors
+        private bool _spawned = false;
+        public override void OnMissionTick(float dt) {
+            if (_spawned)
+                return;
+
+            HandleSpawning();
+            _spawned = true;
+        }
+
         public override void OnEndMissionInternal() {
             foreach (SoundEvent sound in sounds)
                 sound.Release();
         }
 
-        public void HandleSpawning() {
+        private void HandleSpawning() {
             SpawnPlayer();
 
             SpawnTroops();
@@ -112,7 +119,7 @@ namespace Homesteads.MissionLogics {
                 bool shouldWearCivEquipment = true;
                 HandleSpawnEntitySpecialTags(spawnEntity, ref actionSetCodeSuffix, ref shouldWearCivEquipment);
 
-                Vec3 positionToSpawnAt = new Vec3(spawnEntity.GlobalPosition.X, spawnEntity.GlobalPosition.Y, Mission.Scene.GetGroundHeightAtPosition(spawnEntity.GlobalPosition));
+                Vec3 positionToSpawnAt = spawnEntity.GlobalPosition;
                 Mat3 rotationToSpawnWith = spawnEntity.GetFrame().rotation;
 
                 SpawnHomesteadAgent(spawnEntity, positionToSpawnAt, rotationToSpawnWith, homestead.Party, npc, Agent.ControllerType.AI, actionSetCodeSuffix, shouldWearCivEquipment);
@@ -171,7 +178,7 @@ namespace Homesteads.MissionLogics {
                 MatrixFrame frame = entity.GetFrame();
                 ItemObject spawnObject = Game.Current.ObjectManager.GetObject<ItemObject>(animalNameId);
                 ItemRosterElement rosterElement = new ItemRosterElement(spawnObject);
-                Vec3 positionToSpawn = new Vec3(entity.GlobalPosition.X, entity.GlobalPosition.Y, Mission.Scene.GetGroundHeightAtPosition(entity.GlobalPosition));
+                Vec3 positionToSpawn = entity.GlobalPosition;
                 Vec2 initialDirection = frame.rotation.f.AsVec2;
                 Agent agent = Mission.SpawnMonster(rosterElement, default(ItemRosterElement), in positionToSpawn, in initialDirection);
                 TickAgentAnimations(agent);

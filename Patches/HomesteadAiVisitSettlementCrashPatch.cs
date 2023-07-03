@@ -9,7 +9,7 @@ using TaleWorlds.CampaignSystem.CampaignBehaviors.AiBehaviors;
 using TaleWorlds.CampaignSystem.Party;
 
 namespace Homesteads.Patches {
-    [HarmonyPatch(typeof(AiVisitSettlementBehavior), nameof(AiVisitSettlementBehavior.AiHourlyTick))]
+    [HarmonyPatch(typeof(AiVisitSettlementBehavior), "AiHourlyTick")]
     internal class HomesteadAiVisitSettlementCrashPatch {
         [HarmonyPrefix]
         private static bool Prefix(MobileParty mobileParty) {

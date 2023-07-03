@@ -8,6 +8,7 @@ using TaleWorlds.Localization;
 using System.IO;
 using System.Reflection;
 using System.Xml.Linq;
+using TaleWorlds.Core;
 
 namespace Homesteads.Models {
     public class HomesteadScenePlaceable {
@@ -35,8 +36,8 @@ namespace Homesteads.Models {
 
         public HomesteadScenePlaceable(string builderMenuCategoryString, string displayName, string desc, string prefabName, int buildPointsRequired, int productivity, int space, int leisure, List<HomesteadScenePlaceableProducedItem> produceItems, Dictionary<string, int> itemRequirements) {
             BuilderMenuCategoryString = builderMenuCategoryString;
-            DisplayName = displayName;
-            Description = "--------------------\n" + desc + "\n";
+            DisplayName = Utils.GetLocalizedString(displayName);
+            Description = "--------------------\n" + Utils.GetLocalizedString(desc) + "\n";
             PrefabName = prefabName;
             BuildPointsRequired = buildPointsRequired;
             ProductivityIncrease = productivity;
@@ -56,12 +57,29 @@ namespace Homesteads.Models {
             if (produceItems.Count > 0) {
                 List<string> modifiedProduceItemNames = new();
                 foreach (HomesteadScenePlaceableProducedItem item in ProduceItems) {
-                    string itemString = item.ItemProducedID + " x" + item.AmountToProduce;
+                    string[] producedItemIDs = item.ItemProducedID.Split('|');
+                    List<string> validItemProducedNames = new();
+                    foreach (string itemID in producedItemIDs) {
+                        ItemObject? itemProduced = Utils.GetItemFromID(itemID);
+                        if (itemProduced == null)
+                            continue;
+                        validItemProducedNames.Add(itemProduced.Name.ToString());
+                    }
+                    string itemString = String.Join(Utils.GetLocalizedString("{=homestead_current_placeable_or} OR "), validItemProducedNames) + " x" + item.AmountToProduce;
                     if (item.RequiredItemsToProduce.Count > 0) {
-                        itemString += " NEEDS ";
+                        itemString += Utils.GetLocalizedString("{=homestead_current_placeable_needs} NEEDS ");
                         List<string> modifiedRequiredItemNames = new();
-                        foreach (KeyValuePair<string, int> pair in item.RequiredItemsToProduce)
-                            modifiedRequiredItemNames.Add(pair.Key + " x" + pair.Value);
+                        foreach (KeyValuePair<string, int> pair in item.RequiredItemsToProduce) {
+                            string[] requiredItemIDs = pair.Key.Split('|');
+                            List<string> validItemRequiredNames = new();
+                            foreach (string itemID in requiredItemIDs) {
+                                ItemObject? itemRequired = Utils.GetItemFromID(itemID);
+                                if (itemRequired == null)
+                                    continue;
+                                validItemRequiredNames.Add(itemRequired.Name.ToString());
+                            }
+                            modifiedRequiredItemNames.Add(String.Join(Utils.GetLocalizedString("{=homestead_current_placeable_or} OR "), validItemRequiredNames) + " x" + pair.Value);
+                        }
                         itemString += String.Join(", ", modifiedRequiredItemNames);
                     }
                     modifiedProduceItemNames.Add(itemString);
@@ -73,8 +91,12 @@ namespace Homesteads.Models {
             string itemRequirementsTextRaw = "";
             if (itemRequirements.Count > 0) {
                 List<string> modifiedItemRequirementStrings = new();
-                foreach (KeyValuePair<string, int> pair in itemRequirements)
-                    modifiedItemRequirementStrings.Add(pair.Key + " x" + pair.Value);
+                foreach (KeyValuePair<string, int> pair in itemRequirements) {
+                    ItemObject? item = Utils.GetItemFromID(pair.Key);
+                    if (item == null)
+                        continue;
+                    modifiedItemRequirementStrings.Add(item.Name.ToString() + " x" + pair.Value);
+                }
                 TextObject itemRequirementsText = new TextObject("\n" + "{=homestead_current_placeable_item_requirements}ITEMS REQUIRED:" + "\n" + String.Join(", \n", modifiedItemRequirementStrings));
                 itemRequirementsTextRaw = itemRequirementsText.ToString();
             }
