@@ -103,7 +103,7 @@ namespace Homesteads {
 				InquiryElement element = new InquiryElement(hero, hero.Name.ToString(), new ImageIdentifier(CharacterCode.CreateFrom(hero.CharacterObject)), true, GetHeroPropertiesHint(hero));
 				elements.Add(element);
 			}
-			MultiSelectionInquiryData inquiry = new MultiSelectionInquiryData(title, text, elements, true, 1, GameTexts.FindText("str_done").ToString(), GameTexts.FindText("str_cancel").ToString(), onPressedOk, null);
+			MultiSelectionInquiryData inquiry = new MultiSelectionInquiryData(title, text, elements, true, 1, 1, GameTexts.FindText("str_done").ToString(), GameTexts.FindText("str_cancel").ToString(), onPressedOk, null);
 			MBInformationManager.ShowMultiSelectionInquiry(inquiry, true, true);
 		}
 
